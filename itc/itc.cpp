@@ -21,14 +21,16 @@ struct context
 	std::condition_variable wakeup_event;
 	std::atomic_bool wakeup = {false};
 
-	std::atomic_bool running = {true};
+	std::atomic_bool exit = {false};
 };
+
 struct shared_data
 {
 	std::condition_variable cleanup_event;
 	std::mutex mutex;
 	std::map<std::thread::id, std::shared_ptr<context>> contexts;
 	std::thread::id main_thread_id;
+	std::function<void(std::thread& th, const std::string&)> set_thread_name;
 };
 
 shared_data& get_shared_data()
@@ -47,26 +49,27 @@ context*& get_local_data()
 static auto& global_data = get_shared_data();
 static thread_local auto& local_data = get_local_data();
 
-namespace detail
+void name_thread(std::thread& th, const std::string& name)
 {
-void wait_for_cleanup(const std::chrono::nanoseconds& rtime)
+	std::unique_lock<std::mutex> lock(global_data.mutex);
+	if(global_data.set_thread_name)
+	{
+		global_data.set_thread_name(th, name);
+	}
+}
+
+void init()
 {
 	std::unique_lock<std::mutex> lock(global_data.mutex);
 
-	global_data.cleanup_event.wait_for(lock, rtime, []() { return global_data.contexts.empty(); });
+	global_data.main_thread_id = std::this_thread::get_id();
 }
 
-void wait_for_cleanup()
+void shutdown()
 {
 	std::unique_lock<std::mutex> lock(global_data.mutex);
 
 	global_data.cleanup_event.wait(lock, []() { return global_data.contexts.empty(); });
-}
-}
-
-void wait_for_cleanup()
-{
-	detail::wait_for_cleanup();
 }
 
 void set_local_data(context* ctx)
@@ -83,10 +86,6 @@ std::shared_ptr<context> register_thread_impl(std::thread::id id)
 		return it->second;
 	}
 
-	if(global_data.contexts.empty())
-	{
-		global_data.main_thread_id = id;
-	}
 	auto ctx = std::make_shared<context>();
 	global_data.contexts.emplace(id, ctx);
 	return ctx;
@@ -143,7 +142,7 @@ void notify_for_exit(std::thread::id id)
 	std::lock_guard<std::mutex> remote_lock(ctx->tasks_mutex);
 	lock.unlock();
 
-	ctx->running = false;
+	ctx->exit = true;
 	ctx->wakeup = true;
 	ctx->wakeup_event.notify_all();
 }
@@ -183,20 +182,18 @@ void invoke(std::thread::id id, task f)
 	ctx->wakeup_event.notify_all();
 }
 
-void run_or_invoke(std::thread::id id, task f)
+void run_or_invoke(std::thread::id id, task func)
 {
-	if(!f)
-	{
-		return;
-	}
-
 	if(std::this_thread::get_id() == id)
 	{
-		f();
+		if(func)
+		{
+			func();
+		}
 	}
 	else
 	{
-		invoke(id, std::move(f));
+		invoke(id, std::move(func));
 	}
 }
 
@@ -227,11 +224,6 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 		if(task)
 		{
 			task();
-		}
-		else
-		{
-			int a = 0;
-			a++;
 		}
 
 		return true;
@@ -277,7 +269,7 @@ void wait_for_event(const std::chrono::nanoseconds& wait_duration)
 	{
 		return;
 	}
-	if(is_running() == false)
+	if(notified_for_exit())
 	{
 		return;
 	}
@@ -303,7 +295,7 @@ void wait_for_event()
 	{
 		return;
 	}
-	if(is_running() == false)
+	if(notified_for_exit())
 	{
 		return;
 	}
@@ -329,9 +321,9 @@ void unregister_and_unlink()
 	set_local_data(nullptr);
 }
 
-bool is_running()
+bool notified_for_exit()
 {
-	return local_data && local_data->running;
+	return local_data && local_data->exit;
 }
 
 void process()
@@ -355,5 +347,23 @@ bool is_main_thread()
 {
 	return std::this_thread::get_id() == get_main_id();
 }
+}
+
+shared_thread run_thread(const std::string& name)
+{
+	auto th = std::make_shared<itc::thread>([]() {
+		this_thread::register_and_link();
+
+		while(!this_thread::notified_for_exit())
+		{
+			this_thread::wait_for_event();
+		}
+
+		this_thread::unregister_and_unlink();
+	});
+
+	name_thread(*th, name);
+
+	return th;
 }
 }

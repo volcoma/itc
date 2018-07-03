@@ -1,4 +1,9 @@
 #pragma once
-#include <thread>
+#include "itc/itc.h"
 
-std::thread::id test_lib2();
+namespace lib2
+{
+std::thread::id create_detached_thread();
+itc::shared_thread create_shared_thread();
+
+}

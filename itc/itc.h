@@ -7,16 +7,28 @@
 namespace itc
 {
 using task = std::function<void()>;
-using clock = std::chrono::high_resolution_clock;
+using clock = std::chrono::steady_clock;
 
-template <typename Rep, typename Period>
-void wait_for_cleanup(const std::chrono::duration<Rep, Period>& rtime);
-void wait_for_cleanup();
+//-----------------------------------------------------------------------------
+//  Name : init ()
+/// <summary>
+/// Inits the itc system
+/// </summary>
+//-----------------------------------------------------------------------------
+void init();
+
+//-----------------------------------------------------------------------------
+//  Name : shutdown ()
+/// <summary>
+/// Shutdowns itc and waits for all registered threads to unregister themselves.
+/// </summary>
+//-----------------------------------------------------------------------------
+void shutdown();
 
 //-----------------------------------------------------------------------------
 //  Name : get_main_id ()
 /// <summary>
-///
+/// Retrieves the main thread id.
 /// </summary>
 //-----------------------------------------------------------------------------
 std::thread::id get_main_id();
@@ -24,23 +36,24 @@ std::thread::id get_main_id();
 //-----------------------------------------------------------------------------
 //  Name : invoke ()
 /// <summary>
-///
+/// Queues a task to be executed on the specified thread and notifies it.
 /// </summary>
 //-----------------------------------------------------------------------------
-void invoke(std::thread::id id, task f);
+void invoke(std::thread::id id, task func);
 
 //-----------------------------------------------------------------------------
 //  Name : run_or_invoke ()
 /// <summary>
-///
+/// If the thread is the current one then execute the task directly
+/// else behave like invoke.
 /// </summary>
 //-----------------------------------------------------------------------------
-void run_or_invoke(std::thread::id id, task f);
+void run_or_invoke(std::thread::id id, task func);
 
 //-----------------------------------------------------------------------------
 //  Name : notify ()
 /// <summary>
-///
+/// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
 /// </summary>
 //-----------------------------------------------------------------------------
 void notify(std::thread::id id);
@@ -48,7 +61,8 @@ void notify(std::thread::id id);
 //-----------------------------------------------------------------------------
 //  Name : notify_for_exit ()
 /// <summary>
-///
+/// Wakes up and notifies a thread that it should start preparing for exit.
+/// It does not join the thread.
 /// </summary>
 //-----------------------------------------------------------------------------
 void notify_for_exit(std::thread::id id);
@@ -56,7 +70,7 @@ void notify_for_exit(std::thread::id id);
 //-----------------------------------------------------------------------------
 //  Name : register_thread ()
 /// <summary>
-///
+/// registers a thread in the itc system
 /// </summary>
 //-----------------------------------------------------------------------------
 void register_thread(std::thread::id id);
@@ -64,7 +78,7 @@ void register_thread(std::thread::id id);
 //-----------------------------------------------------------------------------
 //  Name : thread ()
 /// <summary>
-/// std::thread wrapper
+/// std::thread wrapper handling registration and exit notification
 /// </summary>
 //-----------------------------------------------------------------------------
 class thread : public std::thread
@@ -93,12 +107,22 @@ public:
 	}
 };
 
+using shared_thread = std::shared_ptr<thread>;
+//-----------------------------------------------------------------------------
+//  Name : run_thread ()
+/// <summary>
+/// Automatically register and run a thread with a prepared loop ready to be
+/// invoked into.
+/// </summary>
+//-----------------------------------------------------------------------------
+shared_thread run_thread(const std::string& name = "");
+
 namespace this_thread
 {
 //-----------------------------------------------------------------------------
 //  Name : register_and_link ()
 /// <summary>
-///
+/// Registers this thread and links it for fast access.
 /// </summary>
 //-----------------------------------------------------------------------------
 void register_and_link();
@@ -106,23 +130,23 @@ void register_and_link();
 //-----------------------------------------------------------------------------
 //  Name : unregister_and_unlink ()
 /// <summary>
-///
+/// Unregisters this thread and unlinks it.
 /// </summary>
 //-----------------------------------------------------------------------------
 void unregister_and_unlink();
 
 //-----------------------------------------------------------------------------
-//  Name : is_running ()
+//  Name : notified_for_exit ()
 /// <summary>
-///
+/// Check whether this thread has been notified for exit.
 /// </summary>
 //-----------------------------------------------------------------------------
-bool is_running();
+bool notified_for_exit();
 
 //-----------------------------------------------------------------------------
-//  Name : register_thread ()
+//  Name : process ()
 /// <summary>
-///
+/// Process all tasks.
 /// </summary>
 //-----------------------------------------------------------------------------
 void process();
@@ -130,7 +154,7 @@ void process();
 //-----------------------------------------------------------------------------
 //  Name : is_main_thread ()
 /// <summary>
-///
+/// Check is this thread the main thread
 /// </summary>
 //-----------------------------------------------------------------------------
 bool is_main_thread();
@@ -138,7 +162,8 @@ bool is_main_thread();
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
 /// <summary>
-///
+/// Waits until receiving an event for not more than the specified duration
+/// and process it.
 /// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
@@ -147,7 +172,7 @@ void wait_for_event(const std::chrono::duration<Rep, Period>& rtime);
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
 /// <summary>
-///
+/// Waits until receiving an event and process it.
 /// </summary>
 //-----------------------------------------------------------------------------
 void wait_for_event();
@@ -155,7 +180,8 @@ void wait_for_event();
 //-----------------------------------------------------------------------------
 //  Name : sleep_for ()
 /// <summary>
-///
+/// Sleeps for the specified duration and allow tasks to be processed during
+/// that time.
 /// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
@@ -168,17 +194,6 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 //-----------------------------------------------------------------------------
 namespace itc
 {
-namespace detail
-{
-void wait_for_cleanup(const std::chrono::nanoseconds& rtime);
-}
-template <typename Rep, typename Period>
-inline void wait_for_cleanup(const std::chrono::duration<Rep, Period>& rtime)
-{
-	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
-	detail::wait_for_cleanup(duration);
-}
-
 namespace this_thread
 {
 namespace detail
@@ -203,7 +218,7 @@ inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
 
 	while(now < end_time)
 	{
-		if(!is_running())
+		if(notified_for_exit())
 		{
 			return;
 		}

@@ -4,42 +4,49 @@
 #include <iostream>
 #include <mutex>
 
-using namespace std::chrono_literals;
-
 int main()
 {
+	itc::init();
 	itc::this_thread::register_and_link();
 
 	auto th0 = std::this_thread::get_id();
 
-	auto th1 = test_lib1();
-	itc::register_thread(th1);
-
-	auto th2 = test_lib2();
-	itc::register_thread(th2);
-
-	int i = 0;
-	while(itc::this_thread::is_running())
 	{
-		if(i++ == 1000)
+		auto th1 = lib1::create_detached_thread();
+		auto th1_sh = lib1::create_shared_thread();
+		auto th11 = th1_sh->get_id();
+
+		auto th2 = lib2::create_detached_thread();
+		auto th2_sh = lib2::create_shared_thread();
+		auto th22 = th2_sh->get_id();
+
+		int i = 0;
+		while(!itc::this_thread::notified_for_exit())
 		{
-			itc::notify_for_exit(th0);
-			itc::notify_for_exit(th1);
-			itc::notify_for_exit(th2);
+			if(i++ == 1000)
+			{
+				itc::notify_for_exit(th0);
+                itc::notify_for_exit(th1);
+                itc::notify_for_exit(th11);
+                itc::notify_for_exit(th2);
+                itc::notify_for_exit(th22);
+			}
+			itc::notify(th1);
+			itc::notify(th11);
+			itc::notify(th2);
+			itc::notify(th22);
+
+			std::cout << "th0 waiting ..." << std::endl;
+			itc::this_thread::wait_for_event();
+			std::cout << "th0 woke up ..." << std::endl;
 		}
-		itc::notify(th1);
-		itc::notify(th2);
-		std::cout << "th0 waiting ..." << std::endl;
-
-		itc::this_thread::wait_for_event();
-
-		std::cout << "th0 woke up ..." << std::endl;
 	}
-
 	std::cout << "th0 exitting ..." << std::endl;
 	itc::this_thread::unregister_and_unlink();
 
-	std::cout << "itc waiting for cleanup ..." << std::endl;
-	itc::wait_for_cleanup();
+	std::cout << "itc shutdown started ..." << std::endl;
+	itc::shutdown();
+	std::cout << "itc shutdown finished ..." << std::endl;
+
 	return 0;
 }

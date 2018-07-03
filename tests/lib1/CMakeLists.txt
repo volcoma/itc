@@ -1,6 +1,6 @@
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
-add_library(lib1 ${libsrc})
+add_library(lib1 STATIC ${libsrc})
 
 target_include_directories(lib1
     PUBLIC
@@ -11,10 +11,7 @@ target_link_libraries(lib1
 		itc
 )
 set_target_properties(lib1 PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
-
-include(target_warning_support)
-set_warning_level(lib1 ultra)

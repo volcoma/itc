@@ -1,28 +1,52 @@
 #include "lib1.h"
-#include "itc/itc.h"
 #include <iostream>
-using namespace std::chrono_literals;
 
-std::thread::id test_lib1()
+namespace lib1
 {
-	itc::thread thread([]() {
+
+std::thread::id create_detached_thread()
+{
+	itc::thread th([]() {
 		itc::this_thread::register_and_link();
 
-		while(itc::this_thread::is_running())
+		while(!itc::this_thread::notified_for_exit())
 		{
 			itc::notify(itc::get_main_id());
 
-			std::cout << "lib1 thread waiting ..." << std::endl;
+			std::cout << "lib1 detached thread waiting ..." << std::endl;
 
 			itc::this_thread::wait_for_event();
 
-			std::cout << "lib1 thread woke up ..." << std::endl;
+			std::cout << "lib1 detached thread woke up ..." << std::endl;
 		}
 
 		std::cout << "lib1 thread exitting ..." << std::endl;
 		itc::this_thread::unregister_and_unlink();
 	});
-	auto id = thread.get_id();
-	thread.detach();
-	return id;
+	auto id = th.get_id();
+    itc::register_thread(id);
+	th.detach();
+    return id;
+}
+
+itc::shared_thread create_shared_thread()
+{
+    auto th = itc::run_thread("lib1");
+    itc::invoke(th->get_id(), []()
+    {
+        while(!itc::this_thread::notified_for_exit())
+        {
+            itc::notify(itc::get_main_id());
+
+			std::cout << "lib1 shared thread waiting ..." << std::endl;
+
+			itc::this_thread::wait_for_event();
+
+			std::cout << "lib1 shared thread woke up ..." << std::endl;
+        }
+    });
+
+    return th;
+}
+
 }
