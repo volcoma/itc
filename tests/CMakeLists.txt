@@ -10,6 +10,10 @@ add_executable(tests ${libsrc})
 
 target_link_libraries(tests PUBLIC itc)
 
+if(UNIX)
+    target_link_libraries(tests PRIVATE pthread)
+endif()
+
 set_target_properties(tests PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
