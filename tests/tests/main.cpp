@@ -1,6 +1,8 @@
 #include "itc/itc.h"
 #include <iostream>
 #include <mutex>
+#include "lib1/lib1.h"
+#include "lib2/lib2.h"
 
 using namespace std::chrono_literals;
 
@@ -10,37 +12,24 @@ int main()
 
 	auto th0 = std::this_thread::get_id();
 
-	itc::thread thread([th0]() {
-		itc::this_thread::register_and_link();
-
-		while(itc::this_thread::is_running())
-		{
-			itc::notify(th0);
-
-			std::cout << "th1 waiting ..." << std::endl;
-
-			itc::this_thread::sleep_for(1s);
-
-			std::cout << "th1 woke up ..." << std::endl;
-		}
-
-		std::cout << "th1 exitting ..." << std::endl;
-		itc::this_thread::unregister_and_unlink();
-	});
-
-	auto th1 = thread.get_id();
+	auto th1 = test_lib1();
 	itc::register_thread(th1);
+
+    auto th2 = test_lib2();
+	itc::register_thread(th2);
 
 	int i = 0;
 	while(itc::this_thread::is_running())
 	{
-		if(i++ == 12)
+		if(i++ == 100002)
 		{
 			itc::notify_for_exit(th0);
 			itc::notify_for_exit(th1);
+            itc::notify_for_exit(th2);
+
 		}
 		itc::notify(th1);
-
+        itc::notify(th2);
 		std::cout << "th0 waiting ..." << std::endl;
 
 		itc::this_thread::wait_for_event();
@@ -48,8 +37,10 @@ int main()
 		std::cout << "th0 woke up ..." << std::endl;
 	}
 
-	thread.join();
+    std::cout << "th0 exitting ..." << std::endl;
 	itc::this_thread::unregister_and_unlink();
 
+    std::cout << "itc waiting for cleanup ..." << std::endl;
+    itc::wait_for_cleanup();
 	return 0;
 }

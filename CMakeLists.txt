@@ -3,8 +3,11 @@
 project (itc)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(sanitizers_support)
 
 option(BUILD_ITC_TESTS "Build the tests" ON)
+
+enable_sanitizers("thread")
 
 add_subdirectory(itc)
 
