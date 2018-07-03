@@ -1,46 +1,47 @@
 #include "itc.h"
 #include <atomic>
 #include <condition_variable>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
-#include <iostream>
+
 namespace itc
 {
 
 struct context
 {
-    std::mutex tasks_mutex;
-    std::vector<task> tasks;
+	std::mutex tasks_mutex;
+	std::vector<task> tasks;
 
-    std::vector<task> processing_tasks;
-    std::size_t processing_idx = 0;
+	std::vector<task> processing_tasks;
+	std::size_t processing_idx = 0;
 
-    std::condition_variable wakeup_event;
-    std::atomic_bool wakeup = {false};
+	std::condition_variable wakeup_event;
+	std::atomic_bool wakeup = {false};
 
-    std::atomic_bool running = {true};
+	std::atomic_bool running = {true};
 };
 struct shared_data
 {
-    std::condition_variable cleanup_event;
-    std::mutex mutex;
-    std::map<std::thread::id, std::shared_ptr<context>> contexts;
-    std::thread::id main_thread_id = std::this_thread::get_id();
+	std::condition_variable cleanup_event;
+	std::mutex mutex;
+	std::map<std::thread::id, std::shared_ptr<context>> contexts;
+	std::thread::id main_thread_id;
 };
 
 shared_data& get_shared_data()
 {
-    static shared_data data;
+	static shared_data data;
 
-    return data;
+	return data;
 }
 
 context*& get_local_data()
 {
-    static thread_local context* data = nullptr;
-    return data;
+	static thread_local context* data = nullptr;
+	return data;
 }
 
 static auto& global_data = get_shared_data();
@@ -52,20 +53,20 @@ void wait_for_cleanup(const std::chrono::nanoseconds& rtime)
 {
 	std::unique_lock<std::mutex> lock(global_data.mutex);
 
-    global_data.cleanup_event.wait_for(lock, rtime);
+	global_data.cleanup_event.wait_for(lock, rtime, []() { return global_data.contexts.empty(); });
 }
 
 void wait_for_cleanup()
 {
 	std::unique_lock<std::mutex> lock(global_data.mutex);
 
-    global_data.cleanup_event.wait(lock);
+	global_data.cleanup_event.wait(lock, []() { return global_data.contexts.empty(); });
 }
 }
 
 void wait_for_cleanup()
 {
-    detail::wait_for_cleanup();
+	detail::wait_for_cleanup();
 }
 
 void set_local_data(context* ctx)
@@ -82,6 +83,10 @@ std::shared_ptr<context> register_thread_impl(std::thread::id id)
 		return it->second;
 	}
 
+	if(global_data.contexts.empty())
+	{
+		global_data.main_thread_id = id;
+	}
 	auto ctx = std::make_shared<context>();
 	global_data.contexts.emplace(id, ctx);
 	return ctx;
@@ -102,10 +107,10 @@ void unregister_thread_impl(std::thread::id id)
 
 	global_data.contexts.erase(id);
 
-    if(global_data.contexts.empty())
-    {
-        global_data.cleanup_event.notify_all();
-    }
+	if(global_data.contexts.empty())
+	{
+		global_data.cleanup_event.notify_all();
+	}
 }
 
 bool has_tasks_to_process(const context& ctx)
@@ -118,7 +123,7 @@ bool prepare_tasks(context& ctx)
 	if(!has_tasks_to_process(ctx) && !ctx.tasks.empty())
 	{
 		std::swap(ctx.tasks, ctx.processing_tasks);
-        ctx.tasks.clear();
+		ctx.tasks.clear();
 		ctx.processing_idx = 0;
 	}
 
@@ -197,7 +202,7 @@ void run_or_invoke(std::thread::id id, task f)
 
 void notify(std::thread::id id)
 {
-	invoke(id, [](){});
+	invoke(id, []() {});
 }
 
 namespace this_thread
@@ -351,5 +356,4 @@ bool is_main_thread()
 	return std::this_thread::get_id() == get_main_id();
 }
 }
-
 }
