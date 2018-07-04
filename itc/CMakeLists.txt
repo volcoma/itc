@@ -8,7 +8,7 @@ target_include_directories(itc
 )
 target_compile_definitions(itc PRIVATE ITC_API_EXPORTS)
 set_target_properties(itc PROPERTIES
-    CXX_STANDARD 11
+    CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 	WINDOWS_EXPORT_ALL_SYMBOLS ON
