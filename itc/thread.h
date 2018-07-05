@@ -10,13 +10,19 @@ namespace itc
 using task = std::function<void()>;
 using clock = std::chrono::steady_clock;
 
+struct utility_callbacks
+{
+	std::function<void(const std::string&)> logger;
+	std::function<void(std::thread&, const std::string&)> set_thread_name;
+};
+
 //-----------------------------------------------------------------------------
 //  Name : init ()
 /// <summary>
-/// Inits the itc system
+/// Inits the itc with user provided utility callbacks
 /// </summary>
 //-----------------------------------------------------------------------------
-void init();
+void init(const utility_callbacks& callbacks = {});
 
 //-----------------------------------------------------------------------------
 //  Name : shutdown ()

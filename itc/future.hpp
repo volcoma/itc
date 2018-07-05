@@ -1,6 +1,7 @@
 #pragma once
 
-#include "itc.h"
+#include "thread.h"
+#include "utility.hpp"
 #include <chrono>
 #include <functional>
 #include <future>
@@ -8,50 +9,6 @@
 #include <thread>
 namespace itc
 {
-template <class T>
-class move_on_copy_t
-{
-public:
-	move_on_copy_t& operator=(const move_on_copy_t<T>& other) = delete;
-	move_on_copy_t& operator=(const move_on_copy_t<T>&& other) = delete;
-
-	move_on_copy_t(T&& value) noexcept
-		: _value(std::move(value))
-	{
-	}
-	move_on_copy_t(const move_on_copy_t& other) noexcept
-		: _value(std::move(other._value))
-	{
-	}
-
-	const T& get() const
-	{
-		return _value;
-	}
-	T& get()
-	{
-		return _value;
-	}
-
-private:
-	mutable T _value;
-};
-
-template <typename T>
-move_on_copy_t<T> make_move_on_copy(T&& value)
-{
-	return move_on_copy_t<T>(std::forward<T>(value));
-}
-template <typename T>
-move_on_copy_t<T> monc(T& value)
-{
-	return make_move_on_copy(std::move(value));
-}
-template <typename T>
-move_on_copy_t<T> capture(T& value)
-{
-	return monc(value);
-}
 
 enum class future_status : unsigned
 {
@@ -61,7 +18,7 @@ enum class future_status : unsigned
 };
 
 template <typename T>
-class promise;
+class future;
 
 namespace detail
 {
@@ -72,11 +29,13 @@ struct internal_state
 	std::atomic<std::thread::id> thread_id = {};
 	std::atomic<future_status> status = {future_status::not_ready};
 };
+template <typename T>
+class promise_base;
 
 template <typename T>
 class future_base
 {
-	friend class promise<T>;
+	friend class promise_base<T>;
 
 public:
 	future_base() = default;
@@ -173,6 +132,16 @@ public:
 		}
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Returns a future associated with the promised result
+	//-----------------------------------------------------------------------------
+	future<T> get_future()
+	{
+		future<T> f;
+		f.state_ = this->state_;
+		return f;
+	}
+
 protected:
 	void set_status(future_status status)
 	{
@@ -194,7 +163,7 @@ template <typename T>
 class future : public detail::future_base<T>
 {
 public:
-	decltype(auto) get() const
+	T& get() const
 	{
 		this->wait();
 
@@ -216,16 +185,6 @@ template <typename T>
 class promise : public detail::promise_base<T>
 {
 public:
-	//-----------------------------------------------------------------------------
-	/// Returns a future associated with the promised result
-	//-----------------------------------------------------------------------------
-	future<T> get_future()
-	{
-		future<T> f;
-		f.state_ = this->state_;
-		return f;
-	}
-
 	//-----------------------------------------------------------------------------
 	/// Sets the result to specific value
 	//-----------------------------------------------------------------------------
@@ -256,16 +215,6 @@ template <>
 class promise<void> : public detail::promise_base<void>
 {
 public:
-	//-----------------------------------------------------------------------------
-	/// Returns a future associated with the promised result
-	//-----------------------------------------------------------------------------
-	future<void> get_future()
-	{
-		future<void> f;
-		f.state_ = this->state_;
-		return f;
-	}
-
 	//-----------------------------------------------------------------------------
 	/// Sets the result to specific value
 	//-----------------------------------------------------------------------------

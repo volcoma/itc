@@ -1,4 +1,4 @@
-#include "itc/itc.h"
+#include "itc/thread.h"
 
 #include "lib2.h"
 #include <iostream>

@@ -1,5 +1,5 @@
 #pragma once
-#include "itc/itc.h"
+#include "itc/thread.h"
 
 namespace lib1
 {

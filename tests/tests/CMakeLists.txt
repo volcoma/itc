@@ -7,7 +7,7 @@ add_executable(tests ${libsrc})
 target_link_libraries(tests PUBLIC itc lib1 lib2)
 
 set_target_properties(tests PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
