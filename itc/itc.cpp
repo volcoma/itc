@@ -33,21 +33,8 @@ struct shared_data
 	std::function<void(std::thread& th, const std::string&)> set_thread_name;
 };
 
-shared_data& get_shared_data()
-{
-	static shared_data data;
-
-	return data;
-}
-
-context*& get_local_data()
-{
-	static thread_local context* data = nullptr;
-	return data;
-}
-
-static auto& global_data = get_shared_data();
-static thread_local auto& local_data = get_local_data();
+static shared_data global_data;
+static thread_local context* local_data = nullptr;
 
 void name_thread(std::thread& th, const std::string& name)
 {
@@ -71,6 +58,20 @@ void shutdown()
 
 	global_data.cleanup_event.wait(lock, []() { return global_data.contexts.empty(); });
 }
+
+
+std::vector<thread::id> get_all_registered_threads()
+{
+    std::vector<thread::id> result;
+    std::unique_lock<std::mutex> lock(global_data.mutex);
+    for(const auto& p : global_data.contexts)
+    {
+        result.emplace_back(p.first);
+    }
+
+    return result;
+}
+
 
 void set_local_data(context* ctx)
 {
@@ -163,9 +164,15 @@ void invoke(std::thread::id id, task f)
 	{
 		return;
 	}
+	std::thread::id invalid;
+	if(id == invalid)
+	{
+		return;
+	}
 
 	std::unique_lock<std::mutex> lock(global_data.mutex);
-	auto it = global_data.contexts.find(id);
+
+    auto it = global_data.contexts.find(id);
 	if(it == global_data.contexts.end())
 	{
 		return;
@@ -364,6 +371,7 @@ shared_thread run_thread(const std::string& name)
 
 	name_thread(*th, name);
 
-	return th;
+    return th;
 }
+
 }

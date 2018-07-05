@@ -40,6 +40,8 @@ int main()
 
 
         };
+        auto all_threads = itc::get_all_registered_threads();
+        std::cout << "registered threads = " << all_threads.size() << std::endl;
         itc::promise<informer> prom;
         auto fut = prom.get_future();
 
@@ -53,8 +55,12 @@ int main()
         });
         std::cout << "waiting on future" << std::endl;
 
-        auto val = std::move(fut.get());
-        (void)val;
+        fut.wait();
+        fut.wait();
+        auto val0 = fut.get();
+        auto val1 = std::move(fut.get());
+        (void)val0;
+        (void)val1;
         std::cout << "future woke up" << std::endl;
 
 		int i = 0;

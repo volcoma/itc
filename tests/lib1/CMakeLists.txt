@@ -1,6 +1,6 @@
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
-add_library(lib1 STATIC ${libsrc})
+add_library(lib1 ${libsrc})
 
 target_include_directories(lib1
     PUBLIC
@@ -14,5 +14,5 @@ set_target_properties(lib1 PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
-    WINDOWS_EXPORT_ALL_SYMBOLS ON
+	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <vector>
 
 namespace itc
 {
@@ -24,6 +25,14 @@ void init();
 /// </summary>
 //-----------------------------------------------------------------------------
 void shutdown();
+
+//-----------------------------------------------------------------------------
+//  Name : get_all_registered_threads ()
+/// <summary>
+/// Retrieves all registered thread ids.
+/// </summary>
+//-----------------------------------------------------------------------------
+std::vector<std::thread::id> get_all_registered_threads();
 
 //-----------------------------------------------------------------------------
 //  Name : get_main_id ()
@@ -204,7 +213,7 @@ void wait_for_event(const std::chrono::nanoseconds& rtime);
 template <typename Rep, typename Period>
 inline void wait_for_event(const std::chrono::duration<Rep, Period>& rtime)
 {
-    if(rtime <= rtime.zero())
+	if(rtime <= rtime.zero())
 		return;
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
 	detail::wait_for_event(duration);
