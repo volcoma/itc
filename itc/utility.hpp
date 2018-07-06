@@ -12,25 +12,25 @@ public:
 	move_on_copy_t& operator=(const move_on_copy_t<T>&& other) = delete;
 
 	move_on_copy_t(T&& value) noexcept
-		: _value(std::move(value))
+		: value_(std::move(value))
 	{
 	}
 	move_on_copy_t(const move_on_copy_t& other) noexcept
-		: _value(std::move(other._value))
+		: value_(std::move(other.value_))
 	{
 	}
 
 	const T& get() const
 	{
-		return _value;
+		return value_;
 	}
 	T& get()
 	{
-		return _value;
+		return value_;
 	}
 
 private:
-	mutable T _value;
+	mutable T value_;
 };
 
 template <typename T>

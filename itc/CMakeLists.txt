@@ -22,3 +22,5 @@ target_link_libraries(itc PUBLIC Threads::Threads)
 include(target_warning_support)
 set_warning_level(itc ultra)
 
+#include(clang_tidy_support)
+#set_target_code_style(itc snake_case)

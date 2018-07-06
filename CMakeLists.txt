@@ -14,9 +14,6 @@ if(BUILD_ITC_TESTS)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
 
-#include(clang_tidy_support)
-#set_code_style(snake_case)
-
 add_subdirectory(itc)
 
 if(BUILD_ITC_TESTS)
