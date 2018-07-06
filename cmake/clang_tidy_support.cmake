@@ -16,7 +16,6 @@ macro(set_clang_tidy_args ARGS_LIST)
 			)
 		set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 		set(CMAKE_CXX_CLANG_TIDY "${DO_CLANG_TIDY}")
-		configure_file(.clang-tidy .clang-tidy COPYONLY)
 	endif()
 endmacro()
 

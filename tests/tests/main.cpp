@@ -25,16 +25,6 @@ int main()
 		auto th2_sh = lib2::create_shared_thread();
 		auto th22 = th2_sh->get_id();
 
-        struct BaiHui
-        {
-
-            int alaBala;
-        protected:
-            int afafa_;
-        private:
-            int goshOasd;
-        };
-
 		struct informer
 		{
 			informer()
