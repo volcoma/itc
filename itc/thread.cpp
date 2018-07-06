@@ -1,4 +1,7 @@
 #include "thread.h"
+#include "future.hpp"
+#include "utility.hpp"
+
 #include <atomic>
 #include <condition_variable>
 #include <map>

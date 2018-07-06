@@ -14,6 +14,3 @@ set_target_properties(tests PROPERTIES
 
 include(target_warning_support)
 set_warning_level(tests ultra)
-
-#include(clang_tidy_support)
-#set_target_code_style(tests snake_case)
