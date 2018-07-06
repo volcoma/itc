@@ -16,5 +16,3 @@ set_target_properties(lib2 PROPERTIES
     CXX_EXTENSIONS NO
 	WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
-
-target_compile_definitions(lib2 PUBLIC LIB2_BUILD)

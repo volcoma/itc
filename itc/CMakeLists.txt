@@ -21,3 +21,4 @@ target_link_libraries(itc PUBLIC Threads::Threads)
 
 include(target_warning_support)
 set_warning_level(itc ultra)
+
