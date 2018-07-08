@@ -2,6 +2,8 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <thread>
+#include <functional>
 
 namespace itc
 {
