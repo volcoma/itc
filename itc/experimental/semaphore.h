@@ -7,17 +7,17 @@ namespace itc
 {
 namespace experimental
 {
-class sync_unit
+class semaphore
 {
 public:
 	using callback = std::function<void()>;
 
-	sync_unit() = default;
-	sync_unit(sync_unit&& rhs) = default;
-	sync_unit& operator=(sync_unit&& rhs) = default;
+	semaphore() = default;
+	semaphore(semaphore&& rhs) = default;
+	semaphore& operator=(semaphore&& rhs) = default;
 
-	sync_unit(const sync_unit&) = delete;
-	sync_unit& operator=(const sync_unit&) = delete;
+	semaphore(const semaphore&) = delete;
+	semaphore& operator=(const semaphore&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// If any threads are waiting on *this,

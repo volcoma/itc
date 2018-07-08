@@ -1,16 +1,16 @@
-#include "sync_unit.h"
+#include "semaphore.h"
 #include "../thread.h"
 namespace itc
 {
 namespace experimental
 {
-void sync_unit::notify_one() noexcept
+void semaphore::notify_one() noexcept
 {
 	std::unique_lock<std::mutex> lock(mutex_);
 	notify_one_impl(lock);
 }
 
-void sync_unit::notify_all() noexcept
+void semaphore::notify_all() noexcept
 {
 	std::unique_lock<std::mutex> lock(mutex_);
 	while(notify_one_impl(lock) > 0)
@@ -18,7 +18,7 @@ void sync_unit::notify_all() noexcept
 	}
 }
 
-void sync_unit::wait(const callback& before_wait, const callback& after_wait) const
+void semaphore::wait(const callback& before_wait, const callback& after_wait) const
 {
 	auto id = std::this_thread::get_id();
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
@@ -46,10 +46,9 @@ void sync_unit::wait(const callback& before_wait, const callback& after_wait) co
 	}
 
 	waiting_threads_.erase(id);
-	waiting_lock.unlock();
 }
 
-void sync_unit::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
+void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
 							  const callback& after_wait) const
 {
 	auto now = clock::now();
@@ -68,6 +67,7 @@ void sync_unit::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 		auto time_left = end_time - now;
 
 		waiting_lock.unlock();
+
 		if(before_wait)
 		{
 			before_wait();
@@ -86,17 +86,16 @@ void sync_unit::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 	}
 
 	waiting_threads_.erase(id);
-	waiting_lock.unlock();
 }
 
-bool& sync_unit::add_to_waiters(thread::id id) const
+bool& semaphore::add_to_waiters(thread::id id) const
 {
 	auto inserted = waiting_threads_.emplace(id, false);
 	auto& it = inserted.first;
 	return it->second;
 }
 
-size_t sync_unit::notify_one_impl(std::unique_lock<std::mutex>& lock) noexcept
+size_t semaphore::notify_one_impl(std::unique_lock<std::mutex>& lock) noexcept
 {
 	// TODO this impl is inefficent
 	std::thread::id id;

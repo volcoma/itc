@@ -1,5 +1,5 @@
 #pragma once
-#include "sync_unit.h"
+#include "semaphore.h"
 
 namespace itc
 {
@@ -77,7 +77,7 @@ public:
 	}
 
 private:
-	sync_unit sync_;
+	semaphore sync_;
 };
 }
 }
