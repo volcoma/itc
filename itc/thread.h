@@ -201,6 +201,16 @@ void wait_for_event();
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
 void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
+
+//-----------------------------------------------------------------------------
+//  Name : sleep_until ()
+/// <summary>
+/// Sleeps until the specified time has been reached and allow tasks to
+/// be processed during that time.
+/// </summary>
+//-----------------------------------------------------------------------------
+template <class Clock, class Duration>
+void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 }
 }
 
@@ -245,6 +255,12 @@ inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
 
 		now = clock::now();
 	}
+}
+
+template <class Clock, class Duration>
+inline void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time)
+{
+	sleep_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 }
 }
 }

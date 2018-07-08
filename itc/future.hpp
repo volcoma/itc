@@ -5,7 +5,6 @@
 #include <chrono>
 #include <functional>
 #include <future>
-#include <iostream>
 #include <thread>
 namespace itc
 {
@@ -39,8 +38,8 @@ class future_base
 
 public:
 	future_base() = default;
-	future_base(future_base&& rhs) = default;
-	future_base& operator=(future_base&& rhs) = default;
+	future_base(future_base&& rhs) noexcept = default;
+	future_base& operator=(future_base&& rhs) noexcept = default;
 
 	future_base(const future_base&) = delete;
 	future_base& operator=(const future_base&) = delete;
@@ -76,37 +75,61 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
-
-		while(state_->status == future_status::not_ready)
+		auto current_id = std::this_thread::get_id();
+		std::thread::id invalid;
+		auto id = state_->thread_id.exchange(current_id);
+		if(id == invalid)
 		{
-			this_thread::wait_for_event();
+			while(state_->status == future_status::not_ready)
+			{
+				if(this_thread::notified_for_exit())
+				{
+					break;
+				}
+				this_thread::wait_for_event();
+			}
 		}
 	}
 
 	//-----------------------------------------------------------------------------
-	/// waits for the result, returns if it is not available for
-	/// the specified timeout duration
+	/// Waits for the result to become available.
+	/// Blocks until specified timeout_duration has elapsed or
+	/// the result becomes available, whichever comes first.
+	/// Returns value identifies the state of the result.
+	/// This function may block for longer than timeout_duration
+	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Rep, class Per>
-	future_status wait_for(const std::chrono::duration<Rep, Per>& rtime) const
+	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
 		auto now = clock::now();
-		auto end_time = now + rtime;
+		auto end_time = now + timeout_duration;
 
-		while(state_->status == future_status::not_ready && now < end_time)
+		auto current_id = std::this_thread::get_id();
+		std::thread::id invalid;
+		auto id = state_->thread_id.exchange(current_id);
+		if(id == invalid)
 		{
-			if(this_thread::notified_for_exit())
+			while(state_->status == future_status::not_ready && now < end_time)
 			{
-				break;
+				if(this_thread::notified_for_exit())
+				{
+					break;
+				}
+				auto time_left = end_time - now;
+				this_thread::wait_for_event(time_left);
+
+				now = clock::now();
 			}
-			auto time_left = end_time - now;
-
-			wait_for_event(time_left);
-
-			now = clock::now();
 		}
 
 		return state_->status;
+	}
+
+	template <class Clock, class Duration>
+	future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
+	{
+		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 	}
 
 protected:
@@ -118,8 +141,8 @@ class promise_base
 {
 public:
 	promise_base() = default;
-	promise_base(promise_base&& rhs) = default;
-	promise_base& operator=(promise_base&& rhs) = default;
+	promise_base(promise_base&& rhs) noexcept = default;
+	promise_base& operator=(promise_base&& rhs) noexcept = default;
 
 	promise_base(const promise_base&) = delete;
 	promise_base& operator=(const promise_base&) = delete;
@@ -151,7 +174,13 @@ protected:
 		}
 		state_->status = status;
 
-		notify(state_->thread_id);
+		std::thread::id invalid;
+		auto id = state_->thread_id.exchange(invalid);
+		// if waiter thread is set then notify it
+		if(id != invalid)
+		{
+			notify(id);
+		}
 	}
 
 	/// The shared state

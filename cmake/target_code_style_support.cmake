@@ -7,7 +7,6 @@ find_program(
 set(CLANG_TIDY_SNAKE_CASE_CONF "\
 -config={ \
 Checks: '-*,readability-identifier-naming', \
-HeaderFilterRegex: '.*', \
 CheckOptions: \
   - { key: readability-identifier-naming.ClassCase, value: lower_case }\
   - { key: readability-identifier-naming.StructCase, value: lower_case }\
@@ -22,7 +21,7 @@ CheckOptions: \
   - { key: readability-identifier-naming.ProtectedMemberSuffix, value: _ }\
 }")
 
-macro(set_target_clang_tidy_args target ARGS_LIST)
+function(set_target_clang_tidy_args target ARGS_LIST)
 	if(CLANG_TIDY_EXE)
 		#message(STATUS "==========================")
 		#message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
@@ -38,16 +37,12 @@ macro(set_target_clang_tidy_args target ARGS_LIST)
 			CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
 		)
 	endif()
-endmacro()
+endfunction()
 
-macro(set_code_style)
-set(target ${ARGV0})
-set(preset ${ARGV1})
+function(set_code_style target preset extra)
 
 if(preset MATCHES "snake_case")
-    set(CLANG_TIDY_CHECKS_CONF ${CLANG_TIDY_SNAKE_CASE_CONF})
-else()
-	set(CLANG_TIDY_CHECKS_CONF ${preset})
+    set(tidy_check_config ${CLANG_TIDY_SNAKE_CASE_CONF})
 endif()
 
 if(BUILD_WITH_CODE_STYLE_CHECKS)
@@ -55,6 +50,8 @@ if(BUILD_WITH_CODE_STYLE_CHECKS)
 	message(STATUS "target : ${target}")
 	message(STATUS "requested style preset : ${preset}")
 	message(STATUS "========================")
-	set_target_clang_tidy_args(${target} "${CLANG_TIDY_CHECKS_CONF}")
+
+	set(args ${extra} ${tidy_check_config})
+	set_target_clang_tidy_args(${target} "${args}")
 endif()
-endmacro()
+endfunction()
