@@ -1,14 +1,16 @@
 #pragma once
 
-#include "thread.h"
-#include "utility.hpp"
+#include "../thread.h"
+#include "../utility.hpp"
+#include "semaphore.h"
 #include <chrono>
 #include <functional>
 #include <future>
 #include <thread>
 namespace itc
 {
-
+namespace experimental
+{
 enum class future_status : unsigned
 {
 	not_ready,
@@ -25,7 +27,7 @@ template <typename T>
 struct internal_state
 {
 	std::shared_ptr<T> value;
-	std::atomic<std::thread::id> thread_id = {};
+	semaphore sync;
 	std::atomic<future_status> status = {future_status::not_ready};
 };
 template <typename T>
@@ -41,8 +43,8 @@ public:
 	future_base(future_base&& rhs) noexcept = default;
 	future_base& operator=(future_base&& rhs) noexcept = default;
 
-	future_base(const future_base&) = delete;
-	future_base& operator=(const future_base&) = delete;
+	future_base(const future_base&) = default;
+	future_base& operator=(const future_base&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the future has an associated shared state.
@@ -75,19 +77,14 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
-		auto current_id = std::this_thread::get_id();
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(current_id);
-		if(id == invalid)
+		while(state_->status == future_status::not_ready)
 		{
-			while(state_->status == future_status::not_ready)
+			if(this_thread::notified_for_exit())
 			{
-				if(this_thread::notified_for_exit())
-				{
-					break;
-				}
-				this_thread::wait_event();
+				break;
 			}
+
+			state_->sync.wait();
 		}
 	}
 
@@ -102,24 +99,16 @@ public:
 	template <typename Rep, typename Per>
 	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
-		auto now = clock::now();
-		auto end_time = now + timeout_duration;
-
-		auto current_id = std::this_thread::get_id();
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(current_id);
-		if(id == invalid)
+		while(state_->status == future_status::not_ready)
 		{
-			while(state_->status == future_status::not_ready && now < end_time)
+			if(this_thread::notified_for_exit())
 			{
-				if(this_thread::notified_for_exit())
-				{
-					break;
-				}
-				auto time_left = end_time - now;
-				this_thread::wait_event_for(time_left);
+				break;
+			}
 
-				now = clock::now();
+			if(state_->sync.wait_for(timeout_duration) == std::cv_status::timeout)
+			{
+				break;
 			}
 		}
 
@@ -174,42 +163,13 @@ protected:
 		}
 		state_->status = status;
 
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(invalid);
-		// if waiter thread is set then notify it
-		if(id != invalid)
-		{
-			notify(id);
-		}
+		state_->sync.notify_all();
 	}
 
 	/// The shared state
 	std::shared_ptr<internal_state<T>> state_ = std::make_shared<internal_state<T>>();
 };
 }
-
-template <typename T>
-class future : public detail::future_base<T>
-{
-public:
-	T& get() const
-	{
-		this->wait();
-
-		auto value = std::move(this->state_->value);
-		return *value.get();
-	}
-};
-
-template <>
-class future<void> : public detail::future_base<void>
-{
-public:
-	void get() const
-	{
-		wait();
-	}
-};
 
 template <typename T>
 class promise : public detail::promise_base<T>
@@ -253,4 +213,88 @@ public:
 		set_status(future_status::ready);
 	}
 };
+
+template <typename T>
+class future;
+
+template <typename T>
+class shared_future : public detail::future_base<T>
+{
+	friend class future<T>;
+
+public:
+	const T& get() const
+	{
+		this->wait();
+
+		auto value = this->state_->value;
+		return *value.get();
+	}
+};
+
+template <>
+class shared_future<void> : public detail::future_base<void>
+{
+	friend class future<void>;
+
+public:
+	void get() const
+	{
+		wait();
+	}
+};
+
+template <typename T>
+class future : public detail::future_base<T>
+{
+public:
+	future() = default;
+	future(future&& rhs) noexcept = default;
+	future& operator=(future&& rhs) noexcept = default;
+
+	future(const future&) = delete;
+	future& operator=(const future&) = delete;
+
+	T get() const
+	{
+		this->wait();
+
+		auto value = std::move(this->state_->value);
+		return *value.get();
+	}
+
+	shared_future<T> share()
+	{
+		shared_future<T> sf;
+		sf.state_ = std::move(this->state_);
+		return sf;
+	}
+};
+
+template <>
+class future<void> : public detail::future_base<void>
+{
+public:
+	future() = default;
+	future(future&& rhs) noexcept = default;
+	future& operator=(future&& rhs) noexcept = default;
+
+	future(const future&) = delete;
+	future& operator=(const future&) = delete;
+
+	void get() const
+	{
+		wait();
+
+		state_->value.reset();
+	}
+
+	shared_future<void> share()
+	{
+		shared_future<void> sf;
+		sf.state_ = std::move(this->state_);
+		return sf;
+	}
+};
+}
 }

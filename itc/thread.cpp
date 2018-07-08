@@ -314,14 +314,15 @@ void process_all(std::unique_lock<std::mutex>& lock)
 	}
 }
 
-void wait_event_for(const std::chrono::nanoseconds& wait_duration)
+std::cv_status wait_event_for(const std::chrono::nanoseconds& wait_duration)
 {
+	auto status = std::cv_status::no_timeout;
 	if(!has_local_data())
 	{
 		log_func("calling functions in the this_thread namespace "
 				 "requires the thread to be already registered by calling "
 				 "this_thread::register_and_link");
-		return;
+		return status;
 	}
 	auto& local_data = get_local_data();
 
@@ -329,20 +330,27 @@ void wait_event_for(const std::chrono::nanoseconds& wait_duration)
 
 	if(true == process_one(lock))
 	{
-		return;
+		return status;
 	}
 	if(notified_for_exit())
 	{
-		return;
+		return status;
 	}
 
 	// guard for spurious wakeups
 	local_data.wakeup_event.wait_for(lock, wait_duration,
 									 [&local_data]() -> bool { return local_data.wakeup; });
 
+	if(!local_data.wakeup && status != std::cv_status::timeout)
+	{
+		status = local_data.wakeup_event.wait_for(lock, wait_duration);
+	}
+
 	local_data.wakeup = false;
 
 	process_one(lock);
+
+	return status;
 }
 
 void wait_event()

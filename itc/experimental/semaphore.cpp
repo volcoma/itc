@@ -48,9 +48,10 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
 	waiting_threads_.erase(id);
 }
 
-void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
+std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
 							  const callback& after_wait) const
 {
+    auto status = std::cv_status::no_timeout;
 	auto now = clock::now();
 	auto end_time = now + timeout_duration;
 
@@ -58,8 +59,14 @@ void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 	auto& notified = add_to_waiters(id);
 
-	while(!notified && now < end_time)
+	while(!notified)
 	{
+        if(now >= end_time)
+        {
+            status = std::cv_status::timeout;
+            break;
+        }
+
 		if(this_thread::notified_for_exit())
 		{
 			break;
@@ -73,7 +80,7 @@ void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 			before_wait();
 		}
 
-		this_thread::wait_event_for(time_left);
+		status = this_thread::wait_event_for(time_left);
 
 		if(after_wait)
 		{
@@ -86,6 +93,8 @@ void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 	}
 
 	waiting_threads_.erase(id);
+
+    return status;
 }
 
 bool& semaphore::add_to_waiters(thread::id id) const

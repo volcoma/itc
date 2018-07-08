@@ -4,6 +4,7 @@
 #include <functional>
 #include <thread>
 #include <vector>
+#include <condition_variable>
 
 namespace itc
 {
@@ -182,7 +183,7 @@ bool is_main_thread();
 /// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
-void wait_event_for(const std::chrono::duration<Rep, Period>& rtime);
+std::cv_status wait_event_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
@@ -223,18 +224,18 @@ namespace this_thread
 {
 namespace detail
 {
-void wait_event_for(const std::chrono::nanoseconds& rtime);
+std::cv_status wait_event_for(const std::chrono::nanoseconds& rtime);
 }
 
 template <typename Rep, typename Period>
-inline void wait_event_for(const std::chrono::duration<Rep, Period>& rtime)
+inline std::cv_status wait_event_for(const std::chrono::duration<Rep, Period>& rtime)
 {
 	if(rtime <= rtime.zero())
-		return;
+		return std::cv_status::no_timeout;
 
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
 
-	detail::wait_event_for(duration);
+	return detail::wait_event_for(duration);
 }
 template <typename Rep, typename Period>
 inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)

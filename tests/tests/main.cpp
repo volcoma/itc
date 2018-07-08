@@ -1,4 +1,6 @@
-//#include "itc/experimental/condition_variable.hpp"
+#include "itc/experimental/condition_variable.hpp"
+#include "itc/experimental/future.hpp"
+
 #include "itc/future.hpp"
 #include "itc/thread.h"
 #include "itc/utility.hpp"
@@ -24,7 +26,6 @@ int main()
 		auto th2_sh = lib2::create_shared_thread();
 		auto th22 = th2_sh->get_id();
 
-
 		auto all_threads = itc::get_all_registered_threads();
 		std::cout << "registered threads = " << all_threads.size() << std::endl;
 		itc::promise<int> prom;
@@ -36,10 +37,11 @@ int main()
 			itc::this_thread::sleep_for(std::chrono::seconds(2));
 			std::cout << "setting promise value" << std::endl;
 
-			p.get().set_value({});
+			p.get().set_value(5);
 		});
 		std::cout << "waiting on future" << std::endl;
 
+		fut.wait_for(std::chrono::seconds(1));
 		auto val0 = fut.get();
 		(void)val0;
 		std::cout << "future woke up" << std::endl;
