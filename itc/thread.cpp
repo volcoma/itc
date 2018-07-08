@@ -338,10 +338,7 @@ std::cv_status wait_event_for(const std::chrono::nanoseconds& wait_duration)
 	}
 
 	// guard for spurious wakeups
-	local_data.wakeup_event.wait_for(lock, wait_duration,
-									 [&local_data]() -> bool { return local_data.wakeup; });
-
-	if(!local_data.wakeup && status != std::cv_status::timeout)
+	while(!local_data.wakeup && status != std::cv_status::timeout)
 	{
 		status = local_data.wakeup_event.wait_for(lock, wait_duration);
 	}
