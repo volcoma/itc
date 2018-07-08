@@ -1,3 +1,4 @@
+//#include "itc/experimental/condition_variable.hpp"
 #include "itc/future.hpp"
 #include "itc/thread.h"
 #include "itc/utility.hpp"
@@ -9,11 +10,8 @@
 
 int main()
 {
-    itc::utility_callbacks callbacks;
-    callbacks.logger = [](const std::string& msg)
-    {
-        std::cout << msg << std::endl;
-    };
+	itc::utility_callbacks callbacks;
+	callbacks.logger = [](const std::string& msg) { std::cout << msg << std::endl; };
 	itc::init(callbacks);
 	itc::this_thread::register_and_link();
 
@@ -32,7 +30,7 @@ int main()
 			{
 				std::cout << "default ctor" << std::endl;
 			}
-			informer(informer&&)
+			informer(informer&&) noexcept
 			{
 				std::cout << "move ctor" << std::endl;
 			}
@@ -46,7 +44,7 @@ int main()
 		itc::promise<informer> prom;
 		auto fut = prom.get_future();
 
-        auto p = itc::capture(prom);
+		auto p = itc::capture(prom);
 		itc::invoke(th22, [p]() mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::seconds(2));
@@ -63,6 +61,28 @@ int main()
 		(void)val0;
 		(void)val1;
 		std::cout << "future woke up" << std::endl;
+
+		auto thcond1 = itc::run_thread();
+
+		auto thcond2 = itc::run_thread();
+
+		//		static itc::experimental::condition_variable cv;
+		//		itc::invoke(thcond1->get_id(), []() {
+		//			std::mutex m;
+		//			std::unique_lock<std::mutex> lock(m);
+		//			cv.wait(lock);
+		//			std::cout << "cv notified" << std::endl;
+		//		});
+
+		//		itc::invoke(thcond2->get_id(), []() {
+		//			std::mutex m;
+		//			std::unique_lock<std::mutex> lock(m);
+		//			cv.wait(lock);
+		//			std::cout << "cv notified" << std::endl;
+		//		});
+
+		//		std::this_thread::sleep_for(std::chrono::seconds(2));
+		//		cv.notify_one();
 
 		int i = 0;
 		while(!itc::this_thread::notified_for_exit())
