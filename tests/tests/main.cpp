@@ -24,24 +24,10 @@ int main()
 		auto th2_sh = lib2::create_shared_thread();
 		auto th22 = th2_sh->get_id();
 
-		struct informer
-		{
-			informer()
-			{
-				std::cout << "default ctor" << std::endl;
-			}
-			informer(informer&&) noexcept
-			{
-				std::cout << "move ctor" << std::endl;
-			}
-			informer(const informer&)
-			{
-				std::cout << "copy ctor" << std::endl;
-			}
-		};
+
 		auto all_threads = itc::get_all_registered_threads();
 		std::cout << "registered threads = " << all_threads.size() << std::endl;
-		itc::promise<informer> prom;
+		itc::promise<int> prom;
 		auto fut = prom.get_future();
 
 		auto p = itc::capture(prom);
@@ -54,12 +40,8 @@ int main()
 		});
 		std::cout << "waiting on future" << std::endl;
 
-		fut.wait();
-		fut.wait();
 		auto val0 = fut.get();
-		auto val1 = std::move(fut.get());
 		(void)val0;
-		(void)val1;
 		std::cout << "future woke up" << std::endl;
 
 		auto thcond1 = itc::run_thread();
@@ -97,7 +79,7 @@ int main()
 			itc::notify(th22);
 
 			std::cout << "th0 waiting ..." << std::endl;
-			itc::this_thread::wait_for_event();
+			itc::this_thread::wait_event();
 			std::cout << "th0 woke up ..." << std::endl;
 		}
 	}

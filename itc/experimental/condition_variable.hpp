@@ -43,6 +43,7 @@ public:
 
 		lock.unlock();
 	}
+
 	//-----------------------------------------------------------------------------
 	/// Blocks until specified timeout_duration has elapsed or
 	/// notified, whichever comes first.

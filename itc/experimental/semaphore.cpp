@@ -36,7 +36,7 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
 			before_wait();
 		}
 
-		this_thread::wait_for_event();
+		this_thread::wait_event();
 
 		if(after_wait)
 		{
@@ -73,7 +73,7 @@ void semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, 
 			before_wait();
 		}
 
-		this_thread::wait_for_event(time_left);
+		this_thread::wait_event_for(time_left);
 
 		if(after_wait)
 		{

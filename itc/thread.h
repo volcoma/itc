@@ -182,7 +182,7 @@ bool is_main_thread();
 /// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
-void wait_for_event(const std::chrono::duration<Rep, Period>& rtime);
+void wait_event_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
@@ -190,7 +190,7 @@ void wait_for_event(const std::chrono::duration<Rep, Period>& rtime);
 /// Waits until receiving an event and process it.
 /// </summary>
 //-----------------------------------------------------------------------------
-void wait_for_event();
+void wait_event();
 
 //-----------------------------------------------------------------------------
 //  Name : sleep_for ()
@@ -209,7 +209,7 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 /// be processed during that time.
 /// </summary>
 //-----------------------------------------------------------------------------
-template <class Clock, class Duration>
+template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 }
 }
@@ -223,16 +223,18 @@ namespace this_thread
 {
 namespace detail
 {
-void wait_for_event(const std::chrono::nanoseconds& rtime);
+void wait_event_for(const std::chrono::nanoseconds& rtime);
 }
 
 template <typename Rep, typename Period>
-inline void wait_for_event(const std::chrono::duration<Rep, Period>& rtime)
+inline void wait_event_for(const std::chrono::duration<Rep, Period>& rtime)
 {
 	if(rtime <= rtime.zero())
 		return;
+
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
-	detail::wait_for_event(duration);
+
+	detail::wait_event_for(duration);
 }
 template <typename Rep, typename Period>
 inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
@@ -251,13 +253,13 @@ inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
 		}
 		auto time_left = end_time - now;
 
-		wait_for_event(time_left);
+		wait_event_for(time_left);
 
 		now = clock::now();
 	}
 }
 
-template <class Clock, class Duration>
+template <typename Clock, typename Duration>
 inline void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time)
 {
 	sleep_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());

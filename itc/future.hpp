@@ -86,7 +86,7 @@ public:
 				{
 					break;
 				}
-				this_thread::wait_for_event();
+				this_thread::wait_event();
 			}
 		}
 	}
@@ -99,7 +99,7 @@ public:
 	/// This function may block for longer than timeout_duration
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
-	template <class Rep, class Per>
+	template <typename Rep, typename Per>
 	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
 		auto now = clock::now();
@@ -117,7 +117,7 @@ public:
 					break;
 				}
 				auto time_left = end_time - now;
-				this_thread::wait_for_event(time_left);
+				this_thread::wait_event(time_left);
 
 				now = clock::now();
 			}
@@ -126,7 +126,7 @@ public:
 		return state_->status;
 	}
 
-	template <class Clock, class Duration>
+	template <typename Clock, typename Duration>
 	future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
 	{
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());

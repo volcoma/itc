@@ -1,9 +1,9 @@
 #pragma once
 #include <chrono>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <thread>
-#include <functional>
 
 namespace itc
 {
@@ -36,7 +36,6 @@ public:
 	/// Waits for the result to become available
 	//-----------------------------------------------------------------------------
 	void wait(const callback& before_wait, const callback& after_wait) const;
-
 	//-----------------------------------------------------------------------------
 	/// Blocks until specified timeout_duration has elapsed or
 	/// notified, whichever comes first.
@@ -62,8 +61,7 @@ public:
 	void wait_until(const std::chrono::time_point<Clock, Duration>& abs_time, const callback& before_wait,
 					const callback& after_wait) const
 	{
-		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch(), before_wait,
-						after_wait);
+		wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch(), before_wait, after_wait);
 	}
 
 protected:

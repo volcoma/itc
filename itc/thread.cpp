@@ -314,7 +314,7 @@ void process_all(std::unique_lock<std::mutex>& lock)
 	}
 }
 
-void wait_for_event(const std::chrono::nanoseconds& wait_duration)
+void wait_event_for(const std::chrono::nanoseconds& wait_duration)
 {
 	if(!has_local_data())
 	{
@@ -345,7 +345,7 @@ void wait_for_event(const std::chrono::nanoseconds& wait_duration)
 	process_one(lock);
 }
 
-void wait_for_event()
+void wait_event()
 {
 	if(!has_local_data())
 	{
@@ -409,9 +409,9 @@ void process()
 	detail::process_all(lock);
 }
 
-void wait_for_event()
+void wait_event()
 {
-	detail::wait_for_event();
+	detail::wait_event();
 }
 
 bool is_main_thread()
@@ -427,7 +427,7 @@ shared_thread run_thread(const std::string& name)
 
 		while(!this_thread::notified_for_exit())
 		{
-			this_thread::wait_for_event();
+			this_thread::wait_event();
 		}
 
 		this_thread::unregister_and_unlink();
