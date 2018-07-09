@@ -13,7 +13,8 @@ using clock = std::chrono::steady_clock;
 
 struct utility_callbacks
 {
-	std::function<void(const std::string&)> logger;
+	std::function<void(const std::string&)> log_info;
+	std::function<void(const std::string&)> log_error;
 	std::function<void(std::thread&, const std::string&)> set_thread_name;
 };
 

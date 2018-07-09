@@ -12,8 +12,10 @@
 
 int main()
 {
+
 	itc::utility_callbacks callbacks;
-	callbacks.logger = [](const std::string& msg) { std::cout << msg << std::endl; };
+	callbacks.log_error = [](const std::string& msg) { std::cout << msg << std::endl; };
+	callbacks.log_info = [](const std::string& msg) { std::cout << msg << std::endl; };
 	itc::init(callbacks);
 	itc::this_thread::register_and_link();
 
@@ -68,14 +70,13 @@ int main()
 		//			cv.wait(lock);
 		//			std::cout << "cv notified" << std::endl;
 		//		});
-
 		//		std::this_thread::sleep_for(std::chrono::seconds(2));
 		//		cv.notify_one();
 
 		int i = 0;
 		while(!itc::this_thread::notified_for_exit())
 		{
-			if(i++ == 100000)
+			if(i++ == 1000)
 			{
 				break;
 			}

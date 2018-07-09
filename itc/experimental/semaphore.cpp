@@ -1,10 +1,33 @@
 #include "semaphore.h"
 #include "../thread.h"
 #include <algorithm>
+
 namespace itc
 {
 namespace experimental
 {
+template <typename ContainerType>
+void swap_erase(ContainerType& container, size_t index)
+{
+	// Swap the element with the back element,
+	// except in the case when we're the last element.
+	if(index + 1 != container.size())
+	{
+		std::swap(container[index], container.back());
+	}
+
+	// Pop the back of the container, deleting our old element.
+	container.pop_back();
+}
+
+size_t get_pseudo_random_idx(size_t upper_bound)
+{
+	auto id = std::this_thread::get_id();
+	std::hash<std::thread::id> hasher;
+	auto h = (hasher(id) << upper_bound);
+	return h % upper_bound;
+}
+
 semaphore::semaphore()
 {
 	waiters_.reserve(16);
@@ -17,8 +40,10 @@ void semaphore::notify_one() noexcept
 
 		if(!waiters_.empty())
 		{
-			auto waiter = std::move(waiters_.back());
-			waiters_.pop_back();
+			auto idx = get_pseudo_random_idx(waiters_.size());
+
+			auto waiter = std::move(waiters_[idx]);
+			swap_erase(waiters_, idx);
 
 			return waiter;
 		}
@@ -26,7 +51,7 @@ void semaphore::notify_one() noexcept
 		return thread_info();
 	}();
 
-	if(waiter.is_valid())
+	if(waiter.id != std::thread::id())
 	{
 		waiter.flag->store(true);
 
@@ -44,7 +69,7 @@ void semaphore::notify_all() noexcept
 
 	for(const auto& waiter : waiters)
 	{
-		if(waiter.is_valid())
+		if(waiter.id != std::thread::id())
 		{
 			waiter.flag->store(true);
 

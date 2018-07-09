@@ -73,13 +73,9 @@ public:
 
 protected:
 	using notification_flag = std::shared_ptr<std::atomic<bool>>;
+
 	struct thread_info
 	{
-		bool is_valid() const
-		{
-			return id != std::thread::id();
-		}
-
 		std::thread::id id;
 		notification_flag flag;
 	};
@@ -88,10 +84,12 @@ protected:
 								 const callback& before_wait, const callback& after_wait) const;
 
 	notification_flag add_waiter(std::thread::id id) const;
+
 	void remove_waiter(std::thread::id id) const;
 
 	mutable std::mutex mutex_;
-	/// container of waiting threads
+	/// This container should be relatively small so
+	/// vector will do it.
 	mutable std::vector<thread_info> waiters_;
 };
 }
