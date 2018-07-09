@@ -7,7 +7,7 @@ namespace experimental
 {
 semaphore::semaphore()
 {
-	//waiters_.reserve(16);
+	waiters_.reserve(16);
 }
 
 void semaphore::notify_one() noexcept
