@@ -1,10 +1,11 @@
 #pragma once
 #include <chrono>
 #include <functional>
-#include <map>
+#include <vector>
 #include <mutex>
 #include <thread>
 #include <condition_variable>
+#include <atomic>
 
 namespace itc
 {
@@ -37,7 +38,8 @@ public:
 	/// Waits for the result to become available
 	//-----------------------------------------------------------------------------
 	void wait(const callback& before_wait = nullptr, const callback& after_wait = nullptr) const;
-	//-----------------------------------------------------------------------------
+
+    //-----------------------------------------------------------------------------
 	/// Blocks until specified timeout_duration has elapsed or
 	/// notified, whichever comes first.
 	/// Returns value identifies the state of the result.
@@ -66,16 +68,27 @@ public:
 	}
 
 protected:
+    using notification_flag = std::shared_ptr<std::atomic<bool>>;
+    struct thread_info
+    {
+        bool is_valid() const
+        {
+            return id != std::thread::id();
+        }
+
+        std::thread::id id;
+        notification_flag flag;
+    };
+
+
 	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
 					   const callback& after_wait) const;
 
-	bool& add_to_waiters(std::thread::id id) const;
-
-	size_t notify_one_impl(std::unique_lock<std::mutex>& lock) noexcept;
+	notification_flag add_to_waiters(std::thread::id id) const;
 
 	mutable std::mutex mutex_;
 	/// container of waiting threads
-	mutable std::map<std::thread::id, bool> waiting_threads_;
+	mutable std::vector<thread_info> waiters_;
 };
 }
 }

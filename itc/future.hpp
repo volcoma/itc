@@ -35,7 +35,6 @@ template <typename T>
 class future_base
 {
 	friend class promise_base<T>;
-
 public:
 	future_base() = default;
 	future_base(future_base&& rhs) noexcept = default;
@@ -86,7 +85,7 @@ public:
 				{
 					break;
 				}
-				this_thread::wait_event();
+				this_thread::wait();
 			}
 		}
 	}
@@ -117,7 +116,7 @@ public:
 					break;
 				}
 				auto time_left = end_time - now;
-				this_thread::wait_event_for(time_left);
+				this_thread::wait_for(time_left);
 
 				now = clock::now();
 			}

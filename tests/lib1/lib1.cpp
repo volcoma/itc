@@ -15,7 +15,7 @@ std::thread::id create_detached_thread()
 
 			std::cout << "lib1 detached thread waiting ..." << std::endl;
 
-			itc::this_thread::wait_event();
+			itc::this_thread::wait();
 
 			std::cout << "lib1 detached thread woke up ..." << std::endl;
 		}
@@ -40,7 +40,7 @@ itc::shared_thread create_shared_thread()
 
 			std::cout << "lib1 shared thread waiting ..." << std::endl;
 
-			itc::this_thread::wait_event();
+			itc::this_thread::wait();
 
 			std::cout << "lib1 shared thread woke up ..." << std::endl;
         }

@@ -81,7 +81,7 @@ int main()
 			itc::notify(th22);
 
 			std::cout << "th0 waiting ..." << std::endl;
-			itc::this_thread::wait_event();
+			itc::this_thread::wait();
 			std::cout << "th0 woke up ..." << std::endl;
 		}
 	}

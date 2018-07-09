@@ -178,20 +178,23 @@ bool is_main_thread();
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
 /// <summary>
-/// Waits until receiving an event for not more than the specified duration
-/// and process it.
+/// Blocks until specified timeout_duration has elapsed or
+/// notified, whichever comes first.
+/// Returns value identifies the state of the result.
+/// This function may block for longer than timeout_duration
+/// due to scheduling or resource contention delays.
 /// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
-std::cv_status wait_event_for(const std::chrono::duration<Rep, Period>& rtime);
+std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
 //  Name : wait_for_event ()
 /// <summary>
-/// Waits until receiving an event and process it.
+/// Blocks until notified with an event and process it.
 /// </summary>
 //-----------------------------------------------------------------------------
-void wait_event();
+void wait();
 
 //-----------------------------------------------------------------------------
 //  Name : sleep_for ()
@@ -224,18 +227,18 @@ namespace this_thread
 {
 namespace detail
 {
-std::cv_status wait_event_for(const std::chrono::nanoseconds& rtime);
+std::cv_status wait_for(const std::chrono::nanoseconds& rtime);
 }
 
 template <typename Rep, typename Period>
-inline std::cv_status wait_event_for(const std::chrono::duration<Rep, Period>& rtime)
+inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)
 {
 	if(rtime <= rtime.zero())
 		return std::cv_status::no_timeout;
 
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
 
-	return detail::wait_event_for(duration);
+	return detail::wait_for(duration);
 }
 template <typename Rep, typename Period>
 inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
@@ -254,7 +257,7 @@ inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
 		}
 		auto time_left = end_time - now;
 
-		wait_event_for(time_left);
+		wait_for(time_left);
 
 		now = clock::now();
 	}

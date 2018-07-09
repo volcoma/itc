@@ -8,7 +8,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
-
+#include "future.hpp"
 namespace itc
 {
 
@@ -314,7 +314,7 @@ void process_all(std::unique_lock<std::mutex>& lock)
 	}
 }
 
-std::cv_status wait_event_for(const std::chrono::nanoseconds& wait_duration)
+std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
 {
 	auto status = std::cv_status::no_timeout;
 	if(!has_local_data())
@@ -414,7 +414,7 @@ void process()
 	detail::process_all(lock);
 }
 
-void wait_event()
+void wait()
 {
 	detail::wait_event();
 }
@@ -432,7 +432,7 @@ shared_thread run_thread(const std::string& name)
 
 		while(!this_thread::notified_for_exit())
 		{
-			this_thread::wait_event();
+			this_thread::wait();
 		}
 
 		this_thread::unregister_and_unlink();

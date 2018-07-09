@@ -52,15 +52,17 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Rep, class Per>
-	void wait_for(std::unique_lock<std::mutex>& lock,
+	std::cv_status wait_for(std::unique_lock<std::mutex>& lock,
 				  const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
 		auto before_wait = [&lock]() { lock.unlock(); };
 		auto after_wait = [&lock]() { lock.lock(); };
 
-		sync_.wait_for(timeout_duration, before_wait, after_wait);
+		auto res = sync_.wait_for(timeout_duration, before_wait, after_wait);
 
 		lock.unlock();
+
+        return res;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -71,7 +73,7 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Clock, class Duration>
-	void wait_until(std::unique_lock<std::mutex>& lock,
+	std::cv_status wait_until(std::unique_lock<std::mutex>& lock,
 					const std::chrono::time_point<Clock, Duration>& abs_time) const
 	{
 		return wait_for(lock, abs_time.time_since_epoch() - Clock::now().time_since_epoch());
