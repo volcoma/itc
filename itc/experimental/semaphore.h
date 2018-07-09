@@ -16,7 +16,7 @@ class semaphore
 public:
 	using callback = std::function<void()>;
 
-	semaphore() = default;
+	semaphore();
 	semaphore(semaphore&& rhs) = default;
 	semaphore& operator=(semaphore&& rhs) = default;
 
@@ -84,7 +84,8 @@ protected:
 	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
 					   const callback& after_wait) const;
 
-	notification_flag add_to_waiters(std::thread::id id) const;
+	notification_flag add_waiter(std::thread::id id) const;
+    void remove_waiter(std::thread::id id) const;
 
 	mutable std::mutex mutex_;
 	/// container of waiting threads

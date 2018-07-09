@@ -25,7 +25,7 @@ template <typename T>
 struct internal_state
 {
 	std::shared_ptr<T> value;
-	std::atomic<std::thread::id> thread_id = {};
+	std::atomic<std::thread::id> thread_id;
 	std::atomic<future_status> status = {future_status::not_ready};
 };
 template <typename T>
@@ -74,20 +74,17 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
-		auto current_id = std::this_thread::get_id();
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(current_id);
-		if(id == invalid)
+		state_->thread_id = std::this_thread::get_id();
+
+		while(state_->status == future_status::not_ready)
 		{
-			while(state_->status == future_status::not_ready)
+			if(this_thread::notified_for_exit())
 			{
-				if(this_thread::notified_for_exit())
-				{
-					break;
-				}
-				this_thread::wait();
+				break;
 			}
+			this_thread::wait();
 		}
+
 	}
 
 	//-----------------------------------------------------------------------------
@@ -104,23 +101,20 @@ public:
 		auto now = clock::now();
 		auto end_time = now + timeout_duration;
 
-		auto current_id = std::this_thread::get_id();
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(current_id);
-		if(id == invalid)
-		{
-			while(state_->status == future_status::not_ready && now < end_time)
-			{
-				if(this_thread::notified_for_exit())
-				{
-					break;
-				}
-				auto time_left = end_time - now;
-				this_thread::wait_for(time_left);
+        state_->thread_id = std::this_thread::get_id();
 
-				now = clock::now();
+		while(state_->status == future_status::not_ready && now < end_time)
+		{
+			if(this_thread::notified_for_exit())
+			{
+				break;
 			}
+			auto time_left = end_time - now;
+			this_thread::wait_for(time_left);
+
+			now = clock::now();
 		}
+
 
 		return state_->status;
 	}
@@ -191,12 +185,13 @@ template <typename T>
 class future : public detail::future_base<T>
 {
 public:
-	T& get() const
+	T get() const
 	{
 		this->wait();
 
 		auto value = std::move(this->state_->value);
-		return *value.get();
+
+		return *value;
 	}
 };
 

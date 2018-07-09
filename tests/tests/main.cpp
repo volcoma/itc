@@ -28,23 +28,28 @@ int main()
 
 		auto all_threads = itc::get_all_registered_threads();
 		std::cout << "registered threads = " << all_threads.size() << std::endl;
-		itc::promise<int> prom;
-		auto fut = prom.get_future();
 
-		auto p = itc::capture(prom);
-		itc::invoke(th22, [p]() mutable {
-			std::cout << "start working" << std::endl;
-			itc::this_thread::sleep_for(std::chrono::seconds(2));
-			std::cout << "setting promise value" << std::endl;
+        for(int i = 0; i < 100; ++i)
+        {
+            itc::experimental::promise<int> prom;
+            auto fut = prom.get_future();
 
-			p.get().set_value(5);
-		});
-		std::cout << "waiting on future" << std::endl;
+            auto p = itc::capture(prom);
+            itc::invoke(th22, [p]() mutable {
+                std::cout << "start working" << std::endl;
+                itc::this_thread::sleep_for(std::chrono::milliseconds(20));
+                std::cout << "setting promise value" << std::endl;
 
-		fut.wait_for(std::chrono::seconds(1));
-		auto val0 = fut.get();
-		(void)val0;
-		std::cout << "future woke up" << std::endl;
+                p.get().set_value(5);
+            });
+            std::cout << "waiting on future " << i << std::endl;
+
+            fut.wait_for(std::chrono::milliseconds(10));
+            auto val0 = fut.get();
+            (void)val0;
+            std::cout << "future woke up " << i << std::endl;
+
+        }
 
 		auto thcond1 = itc::run_thread();
 
@@ -71,7 +76,7 @@ int main()
 		int i = 0;
 		while(!itc::this_thread::notified_for_exit())
 		{
-			if(i++ == 1000)
+			if(i++ == 100000)
 			{
 				break;
 			}

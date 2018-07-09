@@ -5,6 +5,11 @@ namespace itc
 {
 namespace experimental
 {
+semaphore::semaphore()
+{
+    waiters_.reserve(16);
+}
+
 void semaphore::notify_one() noexcept
 {
     auto waiter = [&]()
@@ -58,7 +63,7 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
     /// note: we may be the last reference to the
     /// flag as the notify_functions will set it
     /// and erase it from the container
-	auto notified_flag = add_to_waiters(id);
+	auto notified_flag = add_waiter(id);
 
 	while(!(notified_flag->load()))
 	{
@@ -79,6 +84,8 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
 			after_wait();
 		}
 	}
+
+    remove_waiter(id);
 }
 
 std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
@@ -94,7 +101,7 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
     /// note: we may be the last reference to the
     /// flag as the notify_functions will set it
     /// and erase it from the container
-	auto notified_flag = add_to_waiters(id);
+	auto notified_flag = add_waiter(id);
 
 	while(!(notified_flag->load()))
 	{
@@ -125,10 +132,12 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 		now = clock::now();
 	}
 
+    remove_waiter(id);
+
     return status;
 }
 
-semaphore::notification_flag semaphore::add_to_waiters(thread::id id) const
+semaphore::notification_flag semaphore::add_waiter(thread::id id) const
 {
     std::unique_lock<std::mutex> waiting_lock(mutex_);
 
@@ -146,6 +155,16 @@ semaphore::notification_flag semaphore::add_to_waiters(thread::id id) const
     info.flag = std::make_shared<std::atomic<bool>>(false);
     waiters_.emplace_back(std::move(info));
     return waiters_.back().flag;
+}
+
+void semaphore::remove_waiter(thread::id id) const
+{
+    std::unique_lock<std::mutex> waiting_lock(mutex_);
+
+    waiters_.erase(std::remove_if(std::begin(waiters_), std::end(waiters_), [&id](const thread_info& element)
+    {
+        return element.id == id;
+    }), std::end(waiters_));
 }
 
 }

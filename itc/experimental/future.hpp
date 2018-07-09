@@ -228,7 +228,7 @@ public:
 		this->wait();
 
 		auto value = this->state_->value;
-		return *value.get();
+		return *value;
 	}
 };
 
@@ -260,7 +260,7 @@ public:
 		this->wait();
 
 		auto value = std::move(this->state_->value);
-		return *value.get();
+		return *value;
 	}
 
 	shared_future<T> share()
