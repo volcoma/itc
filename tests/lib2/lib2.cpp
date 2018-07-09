@@ -28,6 +28,7 @@ std::thread::id create_detached_thread()
 	});
 	auto id = th.get_id();
 	itc::register_thread(id);
+
 	th.detach();
 	return id;
 }

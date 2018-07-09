@@ -19,8 +19,8 @@ void swap_erase(ContainerType& container, size_t index)
 	// Pop the back of the container, deleting our old element.
 	container.pop_back();
 }
-
-size_t get_pseudo_random_idx(size_t upper_bound)
+// cheap thread-safe pseudo-random [0, upper_bound)
+size_t pseudo_random(size_t upper_bound)
 {
 	auto id = std::this_thread::get_id();
 	std::hash<std::thread::id> hasher;
@@ -40,9 +40,13 @@ void semaphore::notify_one() noexcept
 
 		if(!waiters_.empty())
 		{
-			auto idx = get_pseudo_random_idx(waiters_.size());
-
+			// Either this or just the back idx may suffice.
+			// The standard doesn't specify any order/priority
+			// here. Using this pseudo-random adds some noise
+			// to the selection.
+			auto idx = pseudo_random(waiters_.size());
 			auto waiter = std::move(waiters_[idx]);
+
 			swap_erase(waiters_, idx);
 
 			return waiter;
@@ -155,6 +159,7 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 		now = clock::now();
 	}
 
+	// remove waiter in case of timeout
 	remove_waiter(id);
 
 	return status;

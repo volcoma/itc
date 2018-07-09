@@ -177,7 +177,15 @@ void process();
 bool is_main_thread();
 
 //-----------------------------------------------------------------------------
-//  Name : wait_for_event ()
+//  Name : wait ()
+/// <summary>
+/// Blocks until notified with an event and process it.
+/// </summary>
+//-----------------------------------------------------------------------------
+void wait();
+
+//-----------------------------------------------------------------------------
+//  Name : wait_for ()
 /// <summary>
 /// Blocks until specified timeout_duration has elapsed or
 /// notified, whichever comes first.
@@ -190,12 +198,17 @@ template <typename Rep, typename Period>
 std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
-//  Name : wait_for_event ()
+//  Name : wait_until ()
 /// <summary>
-/// Blocks until notified with an event and process it.
+/// Blocks until specified abs_time has been reached or
+/// notified, whichever comes first.
+/// Returns value identifies the state of the result.
+/// This function may block for longer than timeout_duration
+/// due to scheduling or resource contention delays.
 /// </summary>
 //-----------------------------------------------------------------------------
-void wait();
+template <typename Clock, typename Duration>
+std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 
 //-----------------------------------------------------------------------------
 //  Name : sleep_for ()
@@ -235,17 +248,28 @@ template <typename Rep, typename Period>
 inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)
 {
 	if(rtime <= rtime.zero())
+	{
 		return std::cv_status::no_timeout;
+	}
 
 	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
 
 	return detail::wait_for(duration);
 }
+
+template <typename Clock, typename Duration>
+inline std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time)
+{
+	return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
+}
+
 template <typename Rep, typename Period>
 inline void sleep_for(const std::chrono::duration<Rep, Period>& rtime)
 {
 	if(rtime <= rtime.zero())
+	{
 		return;
+	}
 
 	auto now = clock::now();
 	auto end_time = now + rtime;

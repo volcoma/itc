@@ -76,8 +76,8 @@ protected:
 
 	struct thread_info
 	{
-		std::thread::id id;
 		notification_flag flag;
+		std::thread::id id;
 	};
 
 	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration,

@@ -336,6 +336,7 @@ void process_all(std::unique_lock<std::mutex>& lock)
 std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
 {
 	auto status = std::cv_status::no_timeout;
+
 	if(!has_local_context())
 	{
 		log_error_func("Calling functions in the this_thread namespace "
