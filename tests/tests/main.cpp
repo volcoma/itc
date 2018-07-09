@@ -31,7 +31,7 @@ int main()
 
         for(int i = 0; i < 100; ++i)
         {
-            itc::experimental::promise<int> prom;
+            itc::promise<int> prom;
             auto fut = prom.get_future();
 
             auto p = itc::capture(prom);
