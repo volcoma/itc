@@ -35,6 +35,7 @@ template <typename T>
 class future_base
 {
 	friend class promise_base<T>;
+
 public:
 	future_base() = default;
 	future_base(future_base&& rhs) noexcept = default;
@@ -84,7 +85,6 @@ public:
 			}
 			this_thread::wait();
 		}
-
 	}
 
 	//-----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ public:
 		auto now = clock::now();
 		auto end_time = now + timeout_duration;
 
-        state_->thread_id = std::this_thread::get_id();
+		state_->thread_id = std::this_thread::get_id();
 
 		while(state_->status == future_status::not_ready && now < end_time)
 		{
@@ -114,7 +114,6 @@ public:
 
 			now = clock::now();
 		}
-
 
 		return state_->status;
 	}

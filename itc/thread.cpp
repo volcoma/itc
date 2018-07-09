@@ -8,7 +8,6 @@
 #include <mutex>
 #include <utility>
 #include <vector>
-#include "future.hpp"
 namespace itc
 {
 
@@ -47,7 +46,7 @@ void set_local_data(context* ctx)
 
 bool has_local_data()
 {
-	return !!local_data_ptr;
+	return !(local_data_ptr == nullptr);
 }
 
 context& get_local_data()
@@ -328,7 +327,7 @@ std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
 
 	std::unique_lock<std::mutex> lock(local_data.tasks_mutex);
 
-	if(true == process_one(lock))
+	if(process_one(lock))
 	{
 		return status;
 	}
@@ -350,7 +349,7 @@ std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
 	return status;
 }
 
-void wait_event()
+void wait()
 {
 	if(!has_local_data())
 	{
@@ -363,7 +362,7 @@ void wait_event()
 
 	std::unique_lock<std::mutex> lock(local_data.tasks_mutex);
 
-	if(true == process_one(lock))
+	if(process_one(lock))
 	{
 		return;
 	}
@@ -416,7 +415,7 @@ void process()
 
 void wait()
 {
-	detail::wait_event();
+	detail::wait();
 }
 
 bool is_main_thread()

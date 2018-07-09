@@ -26,8 +26,8 @@ namespace detail
 template <typename T>
 struct internal_state
 {
+    semaphore sync;
 	std::shared_ptr<T> value;
-	semaphore sync;
 	std::atomic<future_status> status = {future_status::not_ready};
 };
 template <typename T>

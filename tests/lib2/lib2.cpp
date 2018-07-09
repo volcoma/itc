@@ -27,28 +27,27 @@ std::thread::id create_detached_thread()
 		itc::this_thread::unregister_and_unlink();
 	});
 	auto id = th.get_id();
-    itc::register_thread(id);
+	itc::register_thread(id);
 	th.detach();
 	return id;
 }
 
 itc::shared_thread create_shared_thread()
 {
-    auto th = itc::run_thread("lib2");
-    itc::invoke(th->get_id(), []()
-    {
-        while(!itc::this_thread::notified_for_exit())
-        {
-            itc::notify(itc::get_main_id());
+	auto th = itc::run_thread("lib2");
+	itc::invoke(th->get_id(), []() {
+		while(!itc::this_thread::notified_for_exit())
+		{
+			itc::notify(itc::get_main_id());
 
 			std::cout << "lib2 shared thread waiting ..." << std::endl;
 
 			itc::this_thread::wait();
 
 			std::cout << "lib2 shared thread woke up ..." << std::endl;
-        }
-    });
+		}
+	});
 
-    return th;
+	return th;
 }
 }

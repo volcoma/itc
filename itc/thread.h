@@ -1,10 +1,10 @@
 #pragma once
 
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <thread>
 #include <vector>
-#include <condition_variable>
 
 namespace itc
 {
