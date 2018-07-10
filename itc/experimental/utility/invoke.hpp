@@ -4,10 +4,6 @@
 #include <utility>
 namespace itc
 {
-template <typename... Args>
-inline void ignore(Args&&...)
-{
-}
 
 namespace detail
 {
@@ -24,7 +20,7 @@ struct is_reference_wrapper<std::reference_wrapper<U>> : std::true_type
  */
 template <class B, class T, class D, class... Args>
 constexpr inline auto
-invoke_(T B::*f, D&& d,
+invoke_impl(T B::*f, D&& d,
 		Args&&... args) noexcept(noexcept((std::forward<D>(d).*f)(std::forward<Args>(args)...))) ->
 	typename std::enable_if<std::is_function<T>::value &&
 								std::is_base_of<B, typename std::decay<D>::type>::value,
@@ -34,7 +30,7 @@ invoke_(T B::*f, D&& d,
 }
 
 template <class B, class T, class R, class... Args>
-constexpr inline auto invoke_(T B::*f, R&& r,
+constexpr inline auto invoke_impl(T B::*f, R&& r,
 							  Args&&... args) noexcept(noexcept((r.get().*f)(std::forward<Args>(args)...))) ->
 	typename std::enable_if<std::is_function<T>::value &&
 								is_reference_wrapper<typename std::decay<R>::type>::value,
@@ -45,7 +41,7 @@ constexpr inline auto invoke_(T B::*f, R&& r,
 
 template <class B, class T, class P, class... Args>
 constexpr inline auto
-invoke_(T B::*f, P&& p,
+invoke_impl(T B::*f, P&& p,
 		Args&&... args) noexcept(noexcept(((*std::forward<P>(p)).*f)(std::forward<Args>(args)...))) ->
 	typename std::enable_if<std::is_function<T>::value &&
 								!is_reference_wrapper<typename std::decay<P>::type>::value &&
@@ -56,7 +52,7 @@ invoke_(T B::*f, P&& p,
 }
 
 template <class B, class T, class D>
-constexpr inline auto invoke_(T B::*m, D&& d) noexcept(noexcept(std::forward<D>(d).*m)) ->
+constexpr inline auto invoke_impl(T B::*m, D&& d) noexcept(noexcept(std::forward<D>(d).*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								std::is_base_of<B, typename std::decay<D>::type>::value,
 							decltype(std::forward<D>(d).*m)>::type
@@ -65,7 +61,7 @@ constexpr inline auto invoke_(T B::*m, D&& d) noexcept(noexcept(std::forward<D>(
 }
 
 template <class B, class T, class R>
-constexpr inline auto invoke_(T B::*m, R&& r) noexcept(noexcept(r.get().*m)) ->
+constexpr inline auto invoke_impl(T B::*m, R&& r) noexcept(noexcept(r.get().*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								is_reference_wrapper<typename std::decay<R>::type>::value,
 							decltype(r.get().*m)>::type
@@ -74,7 +70,7 @@ constexpr inline auto invoke_(T B::*m, R&& r) noexcept(noexcept(r.get().*m)) ->
 }
 
 template <class B, class T, class P>
-constexpr inline auto invoke_(T B::*m, P&& p) noexcept(noexcept((*std::forward<P>(p)).*m)) ->
+constexpr inline auto invoke_impl(T B::*m, P&& p) noexcept(noexcept((*std::forward<P>(p)).*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								!is_reference_wrapper<typename std::decay<P>::type>::value &&
 								!std::is_base_of<B, typename std::decay<P>::type>::value,
@@ -85,7 +81,7 @@ constexpr inline auto invoke_(T B::*m, P&& p) noexcept(noexcept((*std::forward<P
 
 template <class Callable, class... Args>
 constexpr inline auto
-invoke_(Callable&& c,
+invoke_impl(Callable&& c,
 		Args&&... args) noexcept(noexcept(std::forward<Callable>(c)(std::forward<Args>(args)...)))
 	-> decltype(std::forward<Callable>(c)(std::forward<Args>(args)...))
 {
@@ -97,10 +93,10 @@ invoke_(Callable&& c,
 template <class F, class... Args>
 constexpr inline auto
 invoke(F&& f,
-	   Args&&... args) noexcept(noexcept(detail::invoke_(std::forward<F>(f), std::forward<Args>(args)...)))
-	-> decltype(detail::invoke_(std::forward<F>(f), std::forward<Args>(args)...))
+	   Args&&... args) noexcept(noexcept(detail::invoke_impl(std::forward<F>(f), std::forward<Args>(args)...)))
+	-> decltype(detail::invoke_impl(std::forward<F>(f), std::forward<Args>(args)...))
 {
-	return detail::invoke_(std::forward<F>(f), std::forward<Args>(args)...);
+	return detail::invoke_impl(std::forward<F>(f), std::forward<Args>(args)...);
 }
 
 // Conforming C++14 implementation (is also a valid C++11 implementation):

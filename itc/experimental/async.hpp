@@ -23,15 +23,15 @@ std::enable_if_t<std::is_same<T, void>::value> set_promise_value(promise<T>& p, 
 }
 
 template <class Function, class... Args>
-future<invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>> async(std::thread::id id,
-																			 Function&& func, Args&&... args)
+auto async(std::thread::id id, Function&& func, Args&&... args)
 {
 	using return_type = invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>;
 
-	promise<return_type> promise;
-	auto fut = promise.get_future();
+	auto prom = promise<return_type>();
+	auto fut = prom.get_future();
 	auto tuple_args = std::make_tuple<std::decay_t<Args>...>(std::forward<Args>(args)...);
-	auto p = capture(promise);
+
+	auto p = capture(prom);
 	auto t = capture(tuple_args);
 	auto f = capture(func);
 	invoke(id, [f, t, p]() mutable { detail::set_promise_value(p.get(), f.get(), t.get()); });
