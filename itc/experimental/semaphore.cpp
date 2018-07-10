@@ -17,7 +17,7 @@ void semaphore::notify_one() noexcept
 			// The standard doesn't specify any order/priority
 			// here. We are fair and wake the oldest one
 			auto waiter = std::move(waiters_.front());
-            waiters_.pop_front();
+			waiters_.pop_front();
 
 			return waiter;
 		}
@@ -157,8 +157,7 @@ void semaphore::remove_waiter(thread::id id) const
 {
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 
-    waiters_.remove_if([&id](const thread_info& element) { return element.id == id; });
-
+	waiters_.remove_if([&id](const thread_info& element) { return element.id == id; });
 }
 }
 }

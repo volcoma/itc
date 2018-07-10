@@ -32,7 +32,8 @@ void run_tests(int iterations)
 		}
 
 		std::cout << "th0 waiting ... " << i << std::endl;
-		itc::this_thread::sleep_for(std::chrono::milliseconds(16));
+		itc::this_thread::wait();
+		itc::this_thread::process();
 		std::cout << " th0 woke up ... " << i << std::endl;
 
 		itc::notify(th1);

@@ -331,7 +331,6 @@ void process_all(std::unique_lock<std::mutex>& lock)
 
 		lock.lock();
 	}
-
 }
 
 std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
@@ -358,7 +357,7 @@ std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
 		return status;
 	}
 
-    local_context.wakeup = false;
+	local_context.wakeup = false;
 
 	// guard for spurious wakeups
 	while(!local_context.wakeup && status != std::cv_status::timeout)
@@ -396,7 +395,7 @@ void wait()
 		return;
 	}
 
-    local_context.wakeup = false;
+	local_context.wakeup = false;
 
 	// guard for spurious wakeups
 	local_context.wakeup_event.wait(lock, [&local_context]() -> bool { return local_context.wakeup; });
