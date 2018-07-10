@@ -1,6 +1,6 @@
 #pragma once
 
-namespace invoke_tests
+namespace async_tests
 {
 void run_tests(int iterations);
 }

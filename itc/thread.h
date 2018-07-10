@@ -59,44 +59,29 @@ std::thread::id get_main_id();
 void invoke(std::thread::id id, task func);
 
 //-----------------------------------------------------------------------------
-//  Name : run_or_invoke ()
-/// <summary>
 /// If the thread is the current one then execute the task directly
 /// else behave like invoke.
-/// </summary>
 //-----------------------------------------------------------------------------
 void run_or_invoke(std::thread::id id, task func);
 
 //-----------------------------------------------------------------------------
-//  Name : notify ()
-/// <summary>
 /// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
-/// </summary>
 //-----------------------------------------------------------------------------
 void notify(std::thread::id id);
 
 //-----------------------------------------------------------------------------
-//  Name : notify_for_exit ()
-/// <summary>
 /// Wakes up and notifies a thread that it should start preparing for exit.
 /// It does not join the thread.
-/// </summary>
 //-----------------------------------------------------------------------------
 void notify_for_exit(std::thread::id id);
 
 //-----------------------------------------------------------------------------
-//  Name : register_thread ()
-/// <summary>
-/// registers a thread in the itc system
-/// </summary>
+/// Registers a thread in the itc system
 //-----------------------------------------------------------------------------
 void register_thread(std::thread::id id);
 
 //-----------------------------------------------------------------------------
-//  Name : thread ()
-/// <summary>
 /// std::thread wrapper handling registration and exit notification
-/// </summary>
 //-----------------------------------------------------------------------------
 class thread : public std::thread
 {
@@ -126,96 +111,66 @@ public:
 
 using shared_thread = std::shared_ptr<thread>;
 //-----------------------------------------------------------------------------
-//  Name : run_thread ()
-/// <summary>
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
-/// </summary>
 //-----------------------------------------------------------------------------
 shared_thread run_thread(const std::string& name = "");
 
 namespace this_thread
 {
 //-----------------------------------------------------------------------------
-//  Name : register_and_link ()
-/// <summary>
 /// Registers this thread and links it for fast access.
-/// </summary>
 //-----------------------------------------------------------------------------
 void register_and_link();
 
 //-----------------------------------------------------------------------------
-//  Name : unregister_and_unlink ()
-/// <summary>
 /// Unregisters this thread and unlinks it.
-/// </summary>
 //-----------------------------------------------------------------------------
 void unregister_and_unlink();
 
 //-----------------------------------------------------------------------------
-//  Name : notified_for_exit ()
-/// <summary>
 /// Check whether this thread has been notified for exit.
-/// </summary>
 //-----------------------------------------------------------------------------
 bool notified_for_exit();
 
 //-----------------------------------------------------------------------------
-//  Name : process ()
-/// <summary>
 /// Process all tasks.
-/// </summary>
 //-----------------------------------------------------------------------------
 void process();
 
 //-----------------------------------------------------------------------------
-//  Name : is_main_thread ()
-/// <summary>
 /// Check is this thread the main thread
-/// </summary>
 //-----------------------------------------------------------------------------
 bool is_main_thread();
 
 //-----------------------------------------------------------------------------
-//  Name : wait ()
-/// <summary>
 /// Blocks until notified with an event and process it.
-/// </summary>
 //-----------------------------------------------------------------------------
 void wait();
 
 //-----------------------------------------------------------------------------
-//  Name : wait_for ()
-/// <summary>
 /// Blocks until specified timeout_duration has elapsed or
 /// notified, whichever comes first.
 /// Returns value identifies the state of the result.
 /// This function may block for longer than timeout_duration
 /// due to scheduling or resource contention delays.
-/// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
 std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
-//  Name : wait_until ()
-/// <summary>
 /// Blocks until specified abs_time has been reached or
 /// notified, whichever comes first.
 /// Returns value identifies the state of the result.
 /// This function may block for longer than timeout_duration
 /// due to scheduling or resource contention delays.
-/// </summary>
 //-----------------------------------------------------------------------------
 template <typename Clock, typename Duration>
 std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 
 //-----------------------------------------------------------------------------
-//  Name : sleep_for ()
-/// <summary>
 /// Sleeps for the specified duration and allow tasks to be processed during
 /// that time.
-/// </summary>
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
 void sleep_for(const std::chrono::duration<Rep, Period>& rtime);

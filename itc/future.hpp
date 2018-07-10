@@ -184,6 +184,11 @@ template <typename T>
 class future : public detail::future_base<T>
 {
 public:
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	//-----------------------------------------------------------------------------
 	T get() const
 	{
 		this->wait();
@@ -198,6 +203,11 @@ template <>
 class future<void> : public detail::future_base<void>
 {
 public:
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	//-----------------------------------------------------------------------------
 	void get() const
 	{
 		wait();

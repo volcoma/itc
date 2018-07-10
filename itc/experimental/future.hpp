@@ -255,6 +255,11 @@ public:
 	future(const future&) = delete;
 	future& operator=(const future&) = delete;
 
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	//-----------------------------------------------------------------------------
 	T get() const
 	{
 		this->wait();
@@ -263,6 +268,12 @@ public:
 		return *value;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Transfers the shared state of *this, if any, to a shared_future object.
+	/// Multiple std::shared_future objects may reference the same shared state,
+	/// which is not possible with std::future.
+	/// After calling share on a std::future, valid() == false.
+	//-----------------------------------------------------------------------------
 	shared_future<T> share()
 	{
 		shared_future<T> sf;
@@ -282,6 +293,11 @@ public:
 	future(const future&) = delete;
 	future& operator=(const future&) = delete;
 
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	//-----------------------------------------------------------------------------
 	void get() const
 	{
 		wait();
@@ -289,6 +305,12 @@ public:
 		state_->value.reset();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Transfers the shared state of *this, if any, to a shared_future object.
+	/// Multiple std::shared_future objects may reference the same shared state,
+	/// which is not possible with std::future.
+	/// After calling share on a std::future, valid() == false.
+	//-----------------------------------------------------------------------------
 	shared_future<void> share()
 	{
 		shared_future<void> sf;

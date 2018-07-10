@@ -1,10 +1,10 @@
 #include "fututre_promise_tests.h"
-#include "itc/experimental/future.hpp"
+#include "itc/experimental/async.hpp"
 
 #include <chrono>
 #include <iostream>
 
-namespace future_promise_tests
+namespace async_tests
 {
 
 void run_tests(int iterations)
@@ -14,23 +14,20 @@ void run_tests(int iterations)
 
 	for(int i = 0; i < iterations; ++i)
 	{
-		itc::experimental::promise<int> prom;
-		auto fut = prom.get_future();
 
-		auto p = itc::capture(prom);
-		itc::invoke(th_id, [p, i]() mutable {
+		auto fut = itc::experimental::async(th_id, [i]() mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
 			std::cout << "setting promise value for " << i << std::endl;
 
-			p.get().set_value(5);
+			return 5;
 		});
 		std::cout << "waiting on future for" << i << std::endl;
 		fut.wait_for(std::chrono::milliseconds(10));
 		auto val0 = fut.get();
 		(void)val0;
 		std::cout << "future woke up for" << i << std::endl;
-		std::cout << "FUTURE TEST " << i << " completed" << std::endl;
+		std::cout << "ASYNC TEST " << i << " completed" << std::endl;
 	}
 }
 }

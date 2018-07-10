@@ -7,6 +7,7 @@
 #include "lib1/lib1.h"
 #include "lib2/lib2.h"
 
+#include "async_tests.h"
 #include "condition_variable_tests.h"
 #include "fututre_promise_tests.h"
 #include "invoke_tests.h"
@@ -26,9 +27,10 @@ int main()
 
 	{
 
-		future_promise_tests::run_tests();
-		cv_tests::run_tests();
-		invoke_tests::run_tests();
+		future_promise_tests::run_tests(50);
+		async_tests::run_tests(50);
+		cv_tests::run_tests(50);
+		invoke_tests::run_tests(1000);
 	}
 
 	itc::this_thread::unregister_and_unlink();
