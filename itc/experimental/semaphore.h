@@ -5,7 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <thread>
-#include <vector>
+#include <list>
 
 namespace itc
 {
@@ -16,7 +16,7 @@ class semaphore
 public:
 	using callback = std::function<void()>;
 
-	semaphore();
+	semaphore() = default;
 
 	// mutex prevents us from being moveable
 	semaphore(semaphore&& rhs) = delete;
@@ -90,7 +90,7 @@ protected:
 	mutable std::mutex mutex_;
 	/// This container should be relatively small so
 	/// vector will do it.
-	mutable std::vector<thread_info> waiters_;
+	mutable std::list<thread_info> waiters_;
 };
 }
 }

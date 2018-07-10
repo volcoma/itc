@@ -6,32 +6,6 @@ namespace itc
 {
 namespace experimental
 {
-template <typename ContainerType>
-void swap_erase(ContainerType& container, size_t index)
-{
-	// Swap the element with the back element,
-	// except in the case when we're the last element.
-	if(index + 1 != container.size())
-	{
-		std::swap(container[index], container.back());
-	}
-
-	// Pop the back of the container, deleting our old element.
-	container.pop_back();
-}
-// cheap thread-safe pseudo-random [0, upper_bound)
-size_t pseudo_random(size_t upper_bound)
-{
-	auto id = std::this_thread::get_id();
-	std::hash<std::thread::id> hasher;
-	auto h = (hasher(id) << upper_bound);
-	return h % upper_bound;
-}
-
-semaphore::semaphore()
-{
-	waiters_.reserve(16);
-}
 
 void semaphore::notify_one() noexcept
 {
@@ -40,14 +14,10 @@ void semaphore::notify_one() noexcept
 
 		if(!waiters_.empty())
 		{
-			// Either this or just the back idx may suffice.
 			// The standard doesn't specify any order/priority
-			// here. Using this pseudo-random adds some noise
-			// to the selection.
-			auto idx = pseudo_random(waiters_.size());
-			auto waiter = std::move(waiters_[idx]);
-
-			swap_erase(waiters_, idx);
+			// here. We are fair and wake the oldest one
+			auto waiter = std::move(waiters_.front());
+            waiters_.pop_front();
 
 			return waiter;
 		}
@@ -187,9 +157,8 @@ void semaphore::remove_waiter(thread::id id) const
 {
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 
-	waiters_.erase(std::remove_if(std::begin(waiters_), std::end(waiters_),
-								  [&id](const thread_info& element) { return element.id == id; }),
-				   std::end(waiters_));
+    waiters_.remove_if([&id](const thread_info& element) { return element.id == id; });
+
 }
 }
 }
