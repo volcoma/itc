@@ -1,37 +1,31 @@
 #pragma once
+#include "invoke.hpp"
 #include <tuple>
-#include <type_traits>
+
 namespace itc
 {
-namespace experimental
-{
-
 namespace detail
 {
 
-template <std::size_t... Is>
-auto index_over(std::index_sequence<Is...>)
+/*
+ * apply implemented as per the C++17 standard specification.
+ */
+template <class F, class T, std::size_t... I>
+constexpr inline decltype(auto) apply_(F&& f, T&& t, std::index_sequence<I...>) noexcept(
+	noexcept(itc::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...)))
 {
-	return [](auto&& f) -> decltype(auto) {
-		return decltype(f)(f)(std::integral_constant<std::size_t, Is>{}...);
-	};
-}
-template <std::size_t N>
-auto index_upto(std::integral_constant<std::size_t, N> = {})
-{
-	return index_over(std::make_index_sequence<N>{});
-}
-template <class T>
-constexpr auto tuple_size_v = std::tuple_size<T>::value;
+	ignore(f, t);
+	return itc::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);
 }
 
-template <class F, class Tuple>
-decltype(auto) apply(F&& f, Tuple&& tup)
+} // namespace detail
+
+template <class F, class T>
+constexpr inline decltype(auto) apply(F&& f, T&& t) noexcept(noexcept(
+	detail::apply_(std::forward<F>(f), std::forward<T>(t),
+				   std::make_index_sequence<std::tuple_size<typename std::decay<T>::type>::value>{})))
 {
-	auto indexer = detail::index_upto<detail::tuple_size_v<std::remove_reference_t<Tuple>>>();
-	return indexer([&](auto... Is) -> decltype(auto) {
-		return std::forward<F>(f)(std::get<Is>(std::forward<Tuple>(tup))...);
-	});
-}
+	return detail::apply_(std::forward<F>(f), std::forward<T>(t),
+						  std::make_index_sequence<std::tuple_size<typename std::decay<T>::type>::value>{});
 }
 }

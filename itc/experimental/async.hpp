@@ -1,7 +1,6 @@
 #pragma once
 #include "future.hpp"
 #include "utility/apply.hpp"
-#include "utility/invoke_result.hpp"
 
 namespace itc
 {
