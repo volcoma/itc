@@ -10,13 +10,13 @@ namespace experimental
 namespace detail
 {
 template <typename T, typename F, typename Tuple>
-typename std::enable_if<!std::is_same<T, void>::value>::type set_promise_value(promise<T>& p, F&& f,
+std::enable_if_t<!std::is_same<T, void>::value> set_promise_value(promise<T>& p, F&& f,
 																			   Tuple&& args)
 {
 	p.set_value(apply(std::forward<F>(f), std::forward<Tuple>(args)));
 }
 template <typename T, typename F, typename Tuple>
-typename std::enable_if<std::is_same<T, void>::value>::type set_promise_value(promise<T>& p, F&& f,
+std::enable_if_t<std::is_same<T, void>::value> set_promise_value(promise<T>& p, F&& f,
 																			  Tuple&& args)
 {
 	apply(std::forward<F>(f), std::forward<Tuple>(args));
