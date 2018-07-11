@@ -19,42 +19,27 @@ struct utility_callbacks
 };
 
 //-----------------------------------------------------------------------------
-//  Name : init ()
-/// <summary>
 /// Inits the itc with user provided utility callbacks
-/// </summary>
 //-----------------------------------------------------------------------------
 void init(const utility_callbacks& callbacks = {});
 
 //-----------------------------------------------------------------------------
-//  Name : shutdown ()
-/// <summary>
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
-/// </summary>
 //-----------------------------------------------------------------------------
 void shutdown();
 
 //-----------------------------------------------------------------------------
-//  Name : get_all_registered_threads ()
-/// <summary>
 /// Retrieves all registered thread ids.
-/// </summary>
 //-----------------------------------------------------------------------------
 std::vector<std::thread::id> get_all_registered_threads();
 
 //-----------------------------------------------------------------------------
-//  Name : get_main_id ()
-/// <summary>
 /// Retrieves the main thread id.
-/// </summary>
 //-----------------------------------------------------------------------------
 std::thread::id get_main_id();
 
 //-----------------------------------------------------------------------------
-//  Name : invoke ()
-/// <summary>
 /// Queues a task to be executed on the specified thread and notifies it.
-/// </summary>
 //-----------------------------------------------------------------------------
 void invoke(std::thread::id id, task func);
 
@@ -176,11 +161,8 @@ template <typename Rep, typename Period>
 void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
-//  Name : sleep_until ()
-/// <summary>
 /// Sleeps until the specified time has been reached and allow tasks to
 /// be processed during that time.
-/// </summary>
 //-----------------------------------------------------------------------------
 template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);

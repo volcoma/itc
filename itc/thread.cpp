@@ -20,9 +20,9 @@ struct thread_context
 	std::size_t processing_idx = 0;
 
 	std::condition_variable wakeup_event;
-	std::atomic_bool wakeup = {false};
+	std::atomic<bool> wakeup = {false};
 
-	std::atomic_bool exit = {false};
+	std::atomic<bool> exit = {false};
 };
 
 struct shared_data

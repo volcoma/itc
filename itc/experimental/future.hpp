@@ -217,12 +217,30 @@ public:
 template <typename T>
 class future;
 
+
+//-----------------------------------------------------------------------------
+/// The class template 'shared_future' provides a mechanism
+/// to access the result of asynchronous operations, similar
+/// to 'future', except that multiple threads are allowed to
+/// wait for the same shared state. Unlike 'future',
+/// which is only moveable (so only one instance can refer
+/// to any particular asynchronous result), 'shared_future' is copyable
+/// and multiple shared future objects may refer to the same shared state.
+/// Access to the same shared state from multiple threads is
+/// safe if each thread does it through its own copy of a 'shared_future' object.
+//-----------------------------------------------------------------------------
 template <typename T>
 class shared_future : public detail::future_base<T>
 {
 	friend class future<T>;
 
 public:
+    //-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	//-----------------------------------------------------------------------------
 	const T& get() const
 	{
 		this->wait();
@@ -232,12 +250,30 @@ public:
 	}
 };
 
+
+//-----------------------------------------------------------------------------
+/// The class template 'shared_future' provides a mechanism
+/// to access the result of asynchronous operations, similar
+/// to 'future', except that multiple threads are allowed to
+/// wait for the same shared state. Unlike 'future',
+/// which is only moveable (so only one instance can refer
+/// to any particular asynchronous result), 'shared_future' is copyable
+/// and multiple shared future objects may refer to the same shared state.
+/// Access to the same shared state from multiple threads is
+/// safe if each thread does it through its own copy of a 'shared_future' object.
+//-----------------------------------------------------------------------------
 template <>
 class shared_future<void> : public detail::future_base<void>
 {
 	friend class future<void>;
 
 public:
+    //-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	//-----------------------------------------------------------------------------
 	void get() const
 	{
 		wait();
@@ -259,6 +295,8 @@ public:
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+    /// Any shared state is released. valid() is false after a call to this method.
 	//-----------------------------------------------------------------------------
 	T get() const
 	{
@@ -293,10 +331,12 @@ public:
 	future(const future&) = delete;
 	future& operator=(const future&) = delete;
 
-	//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+    /// Any shared state is released. valid() is false after a call to this method.
 	//-----------------------------------------------------------------------------
 	void get() const
 	{

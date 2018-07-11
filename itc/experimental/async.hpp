@@ -34,6 +34,7 @@ auto async(std::thread::id id, Function&& func, Args&&... args)
 	auto p = capture(prom);
 	auto t = capture(tuple_args);
 	auto f = capture(func);
+
 	invoke(id, [f, t, p]() mutable { detail::set_promise_value(p.get(), f.get(), t.get()); });
 
 	return fut;
