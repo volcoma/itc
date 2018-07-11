@@ -88,8 +88,6 @@ protected:
 	void remove_waiter(std::thread::id id) const;
 
 	mutable std::mutex mutex_;
-	/// This container should be relatively small so
-	/// vector will do it.
 	mutable std::list<waiter_info> waiters_;
 };
 }
