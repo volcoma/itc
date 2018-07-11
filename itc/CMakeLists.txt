@@ -23,5 +23,4 @@ include(target_warning_support)
 set_warning_level(itc ultra)
 
 include(target_code_style_support)
-set(extra_flags "-header-filter=.*")
-set_code_style(itc snake_case "${extra_flags}")
+set_code_style(itc lower_case check_headers "${extra_flags}")
