@@ -74,7 +74,7 @@ public:
 protected:
 	using notification_flag = std::shared_ptr<std::atomic<bool>>;
 
-	struct thread_info
+	struct waiter_info
 	{
 		notification_flag flag;
 		std::thread::id id;
@@ -90,7 +90,7 @@ protected:
 	mutable std::mutex mutex_;
 	/// This container should be relatively small so
 	/// vector will do it.
-	mutable std::list<thread_info> waiters_;
+	mutable std::list<waiter_info> waiters_;
 };
 }
 }

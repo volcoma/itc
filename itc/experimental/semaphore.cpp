@@ -22,7 +22,7 @@ void semaphore::notify_one() noexcept
 			return waiter;
 		}
 
-		return thread_info();
+		return waiter_info();
 	}();
 
 	if(waiter.id != std::thread::id())
@@ -140,13 +140,13 @@ semaphore::notification_flag semaphore::add_waiter(thread::id id) const
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 
 	auto it = std::find_if(std::begin(waiters_), std::end(waiters_),
-						   [&id](const thread_info& element) { return element.id == id; });
+						   [&id](const waiter_info& waiter) { return waiter.id == id; });
 	if(it != std::end(waiters_))
 	{
 		return it->flag;
 	}
 
-	thread_info info;
+	waiter_info info;
 	info.id = id;
 	info.flag = std::make_shared<std::atomic<bool>>(false);
 	waiters_.emplace_back(std::move(info));
@@ -157,7 +157,7 @@ void semaphore::remove_waiter(thread::id id) const
 {
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 
-	waiters_.remove_if([&id](const thread_info& element) { return element.id == id; });
+	waiters_.remove_if([&id](const waiter_info& waiter) { return waiter.id == id; });
 }
 }
 }
