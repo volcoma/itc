@@ -1,8 +1,8 @@
 #pragma once
 
+#include "detail/semaphore.h"
 #include "thread.h"
 #include "utility.hpp"
-#include "detail/semaphore.h"
 #include <future>
 
 namespace itc
@@ -26,10 +26,22 @@ template <typename T>
 struct internal_state
 {
 	semaphore sync;
-	std::exception_ptr exception;
 	std::shared_ptr<T> value;
+	std::exception_ptr exception;
 	std::atomic<future_status> status = {future_status::not_ready};
+
+	// These are here so that constructors of both
+	// future and promise can remain noexcept
+	std::once_flag once;
+	std::atomic_flag retrieved_ = ATOMIC_FLAG_INIT;
 };
+
+template <typename T>
+inline void state_check(const std::shared_ptr<T>& p)
+{
+	if(!static_cast<bool>(p))
+		throw std::future_error(std::future_errc::no_state);
+}
 template <typename T>
 class basic_promise;
 
@@ -61,6 +73,8 @@ public:
 	//-----------------------------------------------------------------------------
 	bool is_ready() const
 	{
+		state_check(state_);
+
 		return state_->status == future_status::ready;
 	}
 
@@ -69,6 +83,8 @@ public:
 	//-----------------------------------------------------------------------------
 	bool has_error() const
 	{
+		state_check(state_);
+
 		return state_->status == future_status::error;
 	}
 
@@ -77,6 +93,8 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
+		state_check(state_);
+
 		while(state_->status == future_status::not_ready)
 		{
 			if(this_thread::notified_for_exit())
@@ -99,6 +117,8 @@ public:
 	template <typename Rep, typename Per>
 	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
+		state_check(state_);
+
 		while(state_->status == future_status::not_ready)
 		{
 			if(this_thread::notified_for_exit())
@@ -119,15 +139,15 @@ public:
 	future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
 	{
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
-	}  
+	}
 
 protected:
-	void check_state() const
+	void check_for_exception() const
 	{
-		if(state_->exception)
+		auto exception = state_->exception;
+		state_->exception = nullptr;
+		if(exception)
 		{
-			auto exception = state_->exception;
-			state_->exception = {};
 			std::rethrow_exception(exception);
 		}
 	}
@@ -150,18 +170,31 @@ public:
 	{
 		if(state_ && state_->status == future_status::not_ready)
 		{
-			set_status(future_status::error);
+			auto exception = make_exception_ptr(std::future_error(std::future_errc::broken_promise));
+			set_exception(exception);
 		}
 	}
 
 	void set_exception(std::exception_ptr p)
 	{
-		if(!this->state_)
+		state_check(state_);
+
+		bool did_set = false;
+		auto set_impl = [this, &p](bool& did_set) {
+			state_->exception = p;
+			did_set = true;
+		};
+
+		std::call_once(state_->once, set_impl, did_set);
+
+		if(did_set)
 		{
-			return;
+			set_status(future_status::error);
 		}
-		this->state_->exception = p;
-		this->set_status(future_status::error);
+		else
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -169,21 +202,30 @@ public:
 	//-----------------------------------------------------------------------------
 	future<T> get_future()
 	{
+		state_check(state_);
+		set_retrieved_flag();
+
 		future<T> f;
-		f.state_ = this->state_;
+		f.state_ = state_;
 		return f;
 	}
 
 protected:
 	void set_status(future_status status)
 	{
-		if(!state_)
-		{
-			return;
-		}
+		state_check(state_);
+
 		state_->status = status;
 
 		state_->sync.notify_all();
+	}
+
+	void set_retrieved_flag()
+	{
+		if(state_->retrieved_.test_and_set())
+		{
+			throw std::future_error(std::future_errc::future_already_retrieved);
+		}
 	}
 
 	/// The shared state
@@ -200,12 +242,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value(T&& value)
 	{
-		if(!this->state_)
-		{
-			return;
-		}
-		this->state_->value = std::make_shared<T>(std::move(value));
-		this->set_status(future_status::ready);
+		set_value_impl(std::forward<T>(value));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -213,12 +250,30 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value(const T& value)
 	{
-		if(!this->state_)
+		set_value_impl(value);
+	}
+
+private:
+	void set_value_impl(const T& value)
+	{
+		state_check(this->state_);
+
+		bool did_set = false;
+		auto set_impl = [this, &value](bool& did_set) {
+			this->state_->value = std::make_shared<T>(value);
+			did_set = true;
+		};
+
+		std::call_once(this->state_->once, set_impl, did_set);
+
+		if(did_set)
 		{
-			return;
+			this->set_status(future_status::ready);
 		}
-		this->state_->value = std::make_shared<T>(value);
-		this->set_status(future_status::ready);
+		else
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
 	}
 };
 template <>
@@ -231,6 +286,26 @@ public:
 	void set_value()
 	{
 		set_status(future_status::ready);
+	}
+
+private:
+	void set_value_impl()
+	{
+		state_check(this->state_);
+
+		bool did_set = false;
+		auto set_impl = [](bool& did_set) { did_set = true; };
+
+		std::call_once(this->state_->once, set_impl, did_set);
+
+		if(did_set)
+		{
+			this->set_status(future_status::ready);
+		}
+		else
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
 	}
 };
 
@@ -254,15 +329,15 @@ public:
 	//-----------------------------------------------------------------------------
 	T get() const
 	{
+		this->check_for_exception();
 		this->wait();
-		this->check_state();
+		this->check_for_exception();
 
 		auto value = std::move(this->state_->value);
-		return *value;
+		return std::move(*value);
 	}
 
-
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// Transfers the shared state of *this, if any, to a shared_future object.
 	/// Multiple std::shared_future objects may reference the same shared state,
 	/// which is not possible with std::future.
@@ -291,13 +366,13 @@ public:
 	//-----------------------------------------------------------------------------
 	void get() const
 	{
+		check_for_exception();
 		wait();
-		check_state();
+		check_for_exception();
 		state_->value.reset();
 	}
 
-
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// Transfers the shared state of *this, if any, to a shared_future object.
 	/// Multiple std::shared_future objects may reference the same shared state,
 	/// which is not possible with std::future.
@@ -320,18 +395,20 @@ public:
 template <typename T>
 class shared_future : public detail::basic_future<T>
 {
-    using base_type = detail::basic_future<T>;
+	using base_type = detail::basic_future<T>;
+
 public:
-    shared_future() noexcept = default;
-    shared_future(const shared_future& sf) = default;
+	shared_future() noexcept = default;
+	shared_future(const shared_future& sf) = default;
 
-    shared_future(future<T>&& uf) noexcept
-    : base_type(std::move(uf))
-    { }
+	shared_future(future<T>&& uf) noexcept
+		: base_type(std::move(uf))
+	{
+	}
 
-    shared_future(shared_future&& sf) noexcept = default;
-    shared_future& operator=(const shared_future& sf) = default;
-    shared_future& operator=(shared_future&& sf) noexcept = default;
+	shared_future(shared_future&& sf) noexcept = default;
+	shared_future& operator=(const shared_future& sf) = default;
+	shared_future& operator=(shared_future&& sf) noexcept = default;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -341,8 +418,9 @@ public:
 	//-----------------------------------------------------------------------------
 	const T& get() const
 	{
+		this->check_for_exception();
 		this->wait();
-		this->check_state();
+		this->check_for_exception();
 
 		auto value = this->state_->value;
 		return *value;
@@ -363,17 +441,19 @@ public:
 template <>
 class shared_future<void> : public detail::basic_future<void>
 {
-    using base_type = detail::basic_future<void>;
-public:
-    shared_future() noexcept = default;
-    shared_future(const shared_future& sf) = default;
-    shared_future(future<void>&& uf) noexcept
-    : base_type(std::move(uf))
-    { }
+	using base_type = detail::basic_future<void>;
 
-    shared_future(shared_future&& sf) noexcept = default;
-    shared_future& operator=(const shared_future& sf) = default;
-    shared_future& operator=(shared_future&& sf) noexcept = default;
+public:
+	shared_future() noexcept = default;
+	shared_future(const shared_future& sf) = default;
+	shared_future(future<void>&& uf) noexcept
+		: base_type(std::move(uf))
+	{
+	}
+
+	shared_future(shared_future&& sf) noexcept = default;
+	shared_future& operator=(const shared_future& sf) = default;
+	shared_future& operator=(shared_future&& sf) noexcept = default;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -383,20 +463,20 @@ public:
 	//-----------------------------------------------------------------------------
 	void get() const
 	{
+		check_for_exception();
 		wait();
-		check_state();
+		check_for_exception();
 	}
 };
 
-template<typename T>
+template <typename T>
 inline shared_future<T> future<T>::share()
 {
-    return shared_future<T>(std::move(*this));
+	return shared_future<T>(std::move(*this));
 }
 
 inline shared_future<void> future<void>::share()
 {
-    return shared_future<void>(std::move(*this));
+	return shared_future<void>(std::move(*this));
 }
-
 }

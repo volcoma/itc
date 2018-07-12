@@ -2,10 +2,10 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <thread>
 #include <vector>
-#include <cstdint>
 
 namespace itc
 {
@@ -15,34 +15,33 @@ namespace itc
 class thread : public std::thread
 {
 public:
-    using id = std::uint64_t;
+	using id = std::uint64_t;
 
 	template <typename F, typename... Args>
 	explicit thread(F&& f, Args&&... args)
 		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
 	{
-        register_this();
+		register_this();
 	}
-    //-----------------------------------------------------------------------------
-    /// Destructs the thread object. Notifies and joins if joinable.
-    //-----------------------------------------------------------------------------
-    ~thread();
+	//-----------------------------------------------------------------------------
+	/// Destructs the thread object. Notifies and joins if joinable.
+	//-----------------------------------------------------------------------------
+	~thread();
 
-    //-----------------------------------------------------------------------------
-    /// Returns the unique id of the thread
-    //-----------------------------------------------------------------------------
-    id get_id() const;
+	//-----------------------------------------------------------------------------
+	/// Returns the unique id of the thread
+	//-----------------------------------------------------------------------------
+	id get_id() const;
 
-    //-----------------------------------------------------------------------------
-    /// Notifies and waits for a thread to finish its execution
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+	/// Notifies and waits for a thread to finish its execution
+	//-----------------------------------------------------------------------------
 	void join();
 
-
 private:
-    void register_this();
+	void register_this();
 
-    id id_;
+	id id_;
 };
 
 using shared_thread = std::shared_ptr<thread>;
@@ -198,9 +197,7 @@ namespace this_thread
 namespace detail
 {
 std::cv_status wait_for(const std::chrono::nanoseconds& rtime);
-
 }
-
 
 template <typename Rep, typename Period>
 inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)

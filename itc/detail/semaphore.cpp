@@ -3,6 +3,8 @@
 
 namespace itc
 {
+namespace detail
+{
 
 void semaphore::notify_one() noexcept
 {
@@ -157,4 +159,4 @@ void semaphore::remove_waiter(thread::id id) const
 	waiters_.remove_if([&id](const waiter_info& waiter) { return waiter.id == id; });
 }
 }
-
+}

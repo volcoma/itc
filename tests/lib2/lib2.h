@@ -5,5 +5,4 @@ namespace lib2
 {
 itc::thread::id create_detached_thread();
 itc::shared_thread create_shared_thread();
-
 }

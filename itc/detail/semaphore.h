@@ -1,15 +1,16 @@
 #pragma once
+#include "../thread.h"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <list>
 #include <mutex>
-#include "../thread.h"
 
 namespace itc
 {
-
+namespace detail
+{
 class semaphore
 {
 public:
@@ -89,5 +90,5 @@ protected:
 	mutable std::mutex mutex_;
 	mutable std::list<waiter_info> waiters_;
 };
-
+}
 }

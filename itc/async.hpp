@@ -1,6 +1,6 @@
 #pragma once
-#include "future.hpp"
 #include "detail/apply.hpp"
+#include "future.hpp"
 
 namespace itc
 {
@@ -10,9 +10,9 @@ namespace detail
 template <typename T, typename F, typename Tuple>
 std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
 {
-    try
+	try
 	{
-        p.set_value(itc::apply(std::forward<F>(f), std::forward<Tuple>(args)));
+		p.set_value(itc::apply(std::forward<F>(f), std::forward<Tuple>(args)));
 	}
 	catch(...)
 	{
@@ -31,8 +31,8 @@ std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promis
 {
 	try
 	{
-        itc::apply(std::forward<F>(f), std::forward<Tuple>(args));
-        p.set_value();
+		itc::apply(std::forward<F>(f), std::forward<Tuple>(args));
+		p.set_value();
 	}
 	catch(...)
 	{
@@ -45,7 +45,6 @@ std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promis
 		{
 		} // set_exception() may throw too
 	}
-
 }
 }
 
@@ -66,5 +65,4 @@ auto async(thread::id id, Function&& func, Args&&... args)
 
 	return fut;
 }
-
 }

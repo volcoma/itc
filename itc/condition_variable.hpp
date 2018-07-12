@@ -81,5 +81,4 @@ public:
 private:
 	semaphore sync_;
 };
-
 }

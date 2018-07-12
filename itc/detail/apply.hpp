@@ -22,6 +22,6 @@ template <class F, class T>
 constexpr inline decltype(auto) apply(F&& f, T&& t)
 {
 	return detail::apply(std::forward<F>(f), std::forward<T>(t),
-						 std::make_index_sequence<std::tuple_size<typename std::decay<T>::type>::value>{});
+						 std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>{});
 }
 }
