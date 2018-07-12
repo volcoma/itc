@@ -64,7 +64,7 @@ void init(const utility_callbacks& callbacks = {});
 //-----------------------------------------------------------------------------
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
 //-----------------------------------------------------------------------------
-void shutdown(const std::chrono::milliseconds& wait_time = std::chrono::milliseconds(5));
+void shutdown(const std::chrono::milliseconds& wait_time = std::chrono::milliseconds(5000));
 
 //-----------------------------------------------------------------------------
 /// Retrieves all registered thread ids.
