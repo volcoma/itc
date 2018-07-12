@@ -1,5 +1,5 @@
 #include "fututre_promise_tests.h"
-#include "itc/experimental/future.hpp"
+#include "itc/future.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -14,7 +14,7 @@ void run_tests(int iterations)
 
 	for(int i = 0; i < iterations; ++i)
 	{
-		itc::experimental::promise<int> prom;
+		itc::promise<int> prom;
 		auto fut = prom.get_future();
 
 		auto p = itc::capture(prom);

@@ -4,7 +4,7 @@
 namespace lib1
 {
 
-std::thread::id create_detached_thread()
+itc::thread::id create_detached_thread()
 {
 	itc::thread th([]() {
 		itc::this_thread::register_and_link();
@@ -23,10 +23,8 @@ std::thread::id create_detached_thread()
 		std::cout << "lib1 thread exitting ..." << std::endl;
 		itc::this_thread::unregister_and_unlink();
 	});
-	auto id = th.get_id();
-    itc::register_thread(id);
 	th.detach();
-    return id;
+    return th.get_id();
 }
 
 itc::shared_thread create_shared_thread()

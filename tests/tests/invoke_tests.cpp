@@ -1,5 +1,4 @@
 #include "invoke_tests.h"
-#include "itc/experimental/async.hpp"
 #include "itc/thread.h"
 
 #include "lib1/lib1.h"
@@ -34,7 +33,7 @@ void run_tests(int iterations)
 		std::cout << "th0 waiting ... " << i << std::endl;
 		itc::this_thread::wait();
 		itc::this_thread::process();
-		std::cout << " th0 woke up ... " << i << std::endl;
+		std::cout << "th0 woke up ... " << i << std::endl;
 
 		itc::notify(th1);
 		itc::notify(th11);

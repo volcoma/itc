@@ -1,6 +1,3 @@
-#include "itc/experimental/condition_variable.hpp"
-#include "itc/experimental/future.hpp"
-
 #include "itc/future.hpp"
 #include "itc/thread.h"
 #include "itc/utility.hpp"
@@ -21,20 +18,13 @@ int main()
 	itc::utility_callbacks callbacks;
 	callbacks.log_error = [](const std::string& msg) { std::cout << msg << std::endl; };
 	callbacks.log_info = [](const std::string& msg) { std::cout << msg << std::endl; };
-
 	itc::init(callbacks);
-	itc::this_thread::register_and_link();
 
-	{
+	future_promise_tests::run_tests(50);
+	async_tests::run_tests(50);
+	cv_tests::run_tests(50);
+	invoke_tests::run_tests(1000);
 
-		future_promise_tests::run_tests(50);
-		async_tests::run_tests(50);
-		cv_tests::run_tests(50);
-		invoke_tests::run_tests(1000);
-	}
-
-	itc::this_thread::unregister_and_unlink();
 	itc::shutdown();
-
 	return 0;
 }

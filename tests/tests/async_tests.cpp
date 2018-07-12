@@ -1,9 +1,9 @@
 #include "fututre_promise_tests.h"
-#include "itc/experimental/async.hpp"
+#include "itc/async.hpp"
 
 #include <chrono>
 #include <iostream>
-
+#include <future>
 namespace async_tests
 {
 
@@ -15,7 +15,7 @@ void run_tests(int iterations)
 	for(int i = 0; i < iterations; ++i)
 	{
 
-		auto fut = itc::experimental::async(th_id, [i]() mutable {
+		auto fut = itc::async(th_id, [i]() mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
 			std::cout << "setting promise value for " << i << std::endl;

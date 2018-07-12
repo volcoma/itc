@@ -3,7 +3,7 @@
 #include "utility.hpp"
 #include <atomic>
 #include <condition_variable>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -13,6 +13,8 @@ namespace itc
 
 struct thread_context
 {
+    std::atomic<thread::id> id = {invalid_id()};
+    std::atomic<std::thread::id> native_thread_id;
 	std::mutex tasks_mutex;
 	std::vector<task> tasks;
 
@@ -27,10 +29,13 @@ struct thread_context
 
 struct shared_data
 {
+    std::atomic<thread::id> id_generator = {0};
+
 	std::condition_variable cleanup_event;
 	std::mutex mutex;
-	std::map<std::thread::id, std::shared_ptr<thread_context>> contexts;
-	std::thread::id main_thread_id;
+    std::unordered_map<std::thread::id, thread::id> id_map;
+	std::unordered_map<thread::id, std::shared_ptr<thread_context>> contexts;
+	thread::id main_id = invalid_id();
 	utility_callbacks utilities;
 };
 
@@ -79,9 +84,27 @@ void log_error(const std::string& name)
 	}
 }
 
-std::shared_ptr<thread_context> register_thread_impl(std::thread::id id)
+thread::id get_id(std::thread::id id)
 {
+    auto tidit = global_state.id_map.find(id);
+    if(tidit != global_state.id_map.end())
+    {
+        return tidit->second;
+    }
+    return invalid_id();
+}
+
+std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thread_id)
+{
+
 	std::unique_lock<std::mutex> lock(global_state.mutex);
+    auto id = get_id(native_thread_id);
+
+    if(id == invalid_id())
+    {
+        id = ++global_state.id_generator;
+    }
+
 	auto it = global_state.contexts.find(id);
 	if(it != global_state.contexts.end())
 	{
@@ -89,11 +112,15 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id id)
 	}
 
 	auto context = std::make_shared<thread_context>();
-	global_state.contexts.emplace(id, context);
+
+    context->native_thread_id = native_thread_id;
+    context->id = id;
+    global_state.id_map[native_thread_id] = id;
+    global_state.contexts.emplace(id, context);
 	return context;
 }
 
-void unregister_thread_impl(std::thread::id id)
+void unregister_thread_impl(thread::id id)
 {
 	std::lock_guard<std::mutex> lock(global_state.mutex);
 	auto it = global_state.contexts.find(id);
@@ -106,11 +133,11 @@ void unregister_thread_impl(std::thread::id id)
 	auto context = it->second;
 	std::lock_guard<std::mutex> local_lock(context->tasks_mutex);
 
+    global_state.id_map.erase(context->native_thread_id);
 	// now we can safely remove the context
 	// from the global container and the local variable
 	// will be the last reference to it
 	global_state.contexts.erase(id);
-
 	// if this was the last entry then
 	// notify that everything is cleaned up
 	if(global_state.contexts.empty())
@@ -121,22 +148,27 @@ void unregister_thread_impl(std::thread::id id)
 
 void init(const utility_callbacks& callbacks)
 {
-	std::unique_lock<std::mutex> lock(global_state.mutex);
+    itc::this_thread::register_and_link();
 
-	if(global_state.main_thread_id != std::thread::id())
+	std::unique_lock<std::mutex> lock(global_state.mutex);   
+	if(global_state.main_id != invalid_id())
 	{
 		log_error_func("Already initted.");
 		return;
 	}
 
-	global_state.main_thread_id = std::this_thread::get_id();
+	global_state.main_id = this_thread::get_id();
 	global_state.utilities = callbacks;
 
 	log_info_func("Successful.");
 }
 
-void shutdown()
+
+void shutdown(const std::chrono::milliseconds& timeout)
 {
+
+    itc::this_thread::unregister_and_unlink();
+
 	log_info_func("Notifying and waiting for threads to complete.");
 
 	auto all_threads = get_all_registered_threads();
@@ -146,7 +178,6 @@ void shutdown()
 	}
 	std::unique_lock<std::mutex> lock(global_state.mutex);
 
-	auto timeout = std::chrono::seconds(5);
 	auto result =
 		global_state.cleanup_event.wait_for(lock, timeout, []() { return global_state.contexts.empty(); });
 
@@ -159,6 +190,8 @@ void shutdown()
 		log_info_func("Timed out. Not all registered threads exited.");
 	}
 }
+
+
 
 std::vector<thread::id> get_all_registered_threads()
 {
@@ -189,7 +222,7 @@ bool prepare_tasks(thread_context& context)
 	return has_tasks_to_process(context);
 }
 
-void notify_for_exit(std::thread::id id)
+void notify_for_exit(thread::id id)
 {
 	std::unique_lock<std::mutex> lock(global_state.mutex);
 
@@ -209,24 +242,25 @@ void notify_for_exit(std::thread::id id)
 	context->wakeup_event.notify_all();
 }
 
-void register_thread(std::thread::id id)
+thread::id register_thread(std::thread::id id)
 {
-	register_thread_impl(id);
+	auto ctx = register_thread_impl(id);
+    return ctx->id;
 }
 
-std::thread::id get_main_id()
+thread::id get_main_id()
 {
-	return global_state.main_thread_id;
+	return global_state.main_id;
 }
 
-void invoke(std::thread::id id, task f)
+void invoke(thread::id id, task f)
 {
 	if(f == nullptr)
 	{
 		log_error_func("Invoking an invalid task.");
 		return;
 	}
-	if(id == std::thread::id())
+	if(id == invalid_id())
 	{
 		log_error_func("Invoking to an invalid thread.");
 		return;
@@ -250,9 +284,9 @@ void invoke(std::thread::id id, task f)
 	context->wakeup_event.notify_all();
 }
 
-void run_or_invoke(std::thread::id id, task func)
+void run_or_invoke(thread::id id, task func)
 {
-	if(std::this_thread::get_id() == id)
+	if(this_thread::get_id() == id)
 	{
 		if(func)
 		{
@@ -265,7 +299,7 @@ void run_or_invoke(std::thread::id id, task func)
 	}
 }
 
-void notify(std::thread::id id)
+void notify(thread::id id)
 {
 	invoke(id, []() {});
 }
@@ -402,8 +436,10 @@ void wait()
 
 	local_context.wakeup = false;
 
-	process_one(lock);
+    process_one(lock);
 }
+
+
 }
 
 void register_and_link()
@@ -414,13 +450,22 @@ void register_and_link()
 
 void unregister_and_unlink()
 {
-	unregister_thread_impl(std::this_thread::get_id());
+	unregister_thread_impl(get_id());
 	set_local_context(nullptr);
 }
 
 bool notified_for_exit()
 {
-	return has_local_context() && get_local_context().exit;
+    if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_and_link");
+		return true;
+	}
+	auto& local_context = get_local_context();
+
+    return local_context.exit;
 }
 
 void process()
@@ -444,10 +489,24 @@ void wait()
 	detail::wait();
 }
 
+thread::id get_id()
+{
+    if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_and_link");
+		return invalid_id();
+	}
+	auto& local_context = get_local_context();
+    return local_context.id;
+}
+
 bool is_main_thread()
 {
-	return std::this_thread::get_id() == get_main_id();
+    return this_thread::get_id() == get_main_id();
 }
+
 }
 
 shared_thread run_thread(const std::string& name)
@@ -467,4 +526,34 @@ shared_thread run_thread(const std::string& name)
 
 	return th;
 }
+
+thread::id invalid_id()
+{
+    return 0;
+}
+
+thread::id thread::get_id() const
+{
+    return id_;
+}
+
+void thread::join()
+{
+    notify_for_exit(get_id());
+    std::thread::join();
+}
+
+void thread::register_this()
+{
+    id_ = register_thread(std::thread::get_id());
+}
+
+thread::~thread()
+{
+    if(joinable())
+    {
+        join();
+    }
+}
+
 }

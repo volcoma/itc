@@ -1,49 +1,44 @@
 #pragma once
-#include "semaphore.h"
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <functional>
+#include <list>
+#include <mutex>
+#include "../thread.h"
 
 namespace itc
 {
-namespace experimental
-{
-class condition_variable
-{
 
+class semaphore
+{
 public:
-	condition_variable() = default;
+	using callback = std::function<void()>;
 
-	condition_variable(condition_variable&& rhs) = delete;
-	condition_variable& operator=(condition_variable&& rhs) = delete;
+	semaphore() = default;
 
-	condition_variable(const condition_variable&) = delete;
-	condition_variable& operator=(const condition_variable&) = delete;
+	// mutex prevents us from being moveable
+	semaphore(semaphore&& rhs) = delete;
+	semaphore& operator=(semaphore&& rhs) = delete;
+
+	semaphore(const semaphore&) = delete;
+	semaphore& operator=(const semaphore&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// If any threads are waiting on *this,
 	/// calling notify_one unblocks one of the waiting threads.
 	//-----------------------------------------------------------------------------
-	void notify_one() noexcept
-	{
-		sync_.notify_one();
-	}
+	void notify_one() noexcept;
+
 	//-----------------------------------------------------------------------------
 	/// Unblocks all threads currently waiting for *this.
 	//-----------------------------------------------------------------------------
-	void notify_all() noexcept
-	{
-		sync_.notify_all();
-	}
+	void notify_all() noexcept;
+
 	//-----------------------------------------------------------------------------
 	/// Waits for the result to become available
 	//-----------------------------------------------------------------------------
-	void wait(std::unique_lock<std::mutex>& lock) const
-	{
-		auto before_wait = [&lock]() { lock.unlock(); };
-		auto after_wait = [&lock]() { lock.lock(); };
-
-		sync_.wait(before_wait, after_wait);
-
-		lock.unlock();
-	}
+	void wait(const callback& before_wait = nullptr, const callback& after_wait = nullptr) const;
 
 	//-----------------------------------------------------------------------------
 	/// Blocks until specified timeout_duration has elapsed or
@@ -53,17 +48,10 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Rep, class Per>
-	std::cv_status wait_for(std::unique_lock<std::mutex>& lock,
-							const std::chrono::duration<Rep, Per>& timeout_duration) const
+	std::cv_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration,
+							const callback& before_wait = nullptr, const callback& after_wait = nullptr) const
 	{
-		auto before_wait = [&lock]() { lock.unlock(); };
-		auto after_wait = [&lock]() { lock.lock(); };
-
-		auto res = sync_.wait_for(timeout_duration, before_wait, after_wait);
-
-		lock.unlock();
-
-		return res;
+		return wait_for_impl(timeout_duration, before_wait, after_wait);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -74,14 +62,32 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Clock, class Duration>
-	std::cv_status wait_until(std::unique_lock<std::mutex>& lock,
-							  const std::chrono::time_point<Clock, Duration>& abs_time) const
+	std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time,
+							  const callback& before_wait = nullptr,
+							  const callback& after_wait = nullptr) const
 	{
-		return wait_for(lock, abs_time.time_since_epoch() - Clock::now().time_since_epoch());
+		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch(), before_wait,
+						after_wait);
 	}
 
-private:
-	semaphore sync_;
+protected:
+	using notification_flag = std::shared_ptr<std::atomic<bool>>;
+
+	struct waiter_info
+	{
+		notification_flag flag;
+		thread::id id;
+	};
+
+	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration,
+								 const callback& before_wait, const callback& after_wait) const;
+
+	notification_flag add_waiter(thread::id id) const;
+
+	void remove_waiter(thread::id id) const;
+
+	mutable std::mutex mutex_;
+	mutable std::list<waiter_info> waiters_;
 };
-}
+
 }

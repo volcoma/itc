@@ -3,7 +3,7 @@
 
 namespace lib2
 {
-std::thread::id create_detached_thread();
+itc::thread::id create_detached_thread();
 itc::shared_thread create_shared_thread();
 
 }

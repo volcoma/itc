@@ -2,10 +2,9 @@
 
 #include "thread.h"
 #include "utility.hpp"
-#include <chrono>
-#include <functional>
+#include "detail/semaphore.h"
 #include <future>
-#include <thread>
+
 namespace itc
 {
 
@@ -24,8 +23,9 @@ namespace detail
 template <typename T>
 struct internal_state
 {
+	semaphore sync;
+	std::exception_ptr exception;
 	std::shared_ptr<T> value;
-	std::atomic<std::thread::id> thread_id;
 	std::atomic<future_status> status = {future_status::not_ready};
 };
 template <typename T>
@@ -41,8 +41,8 @@ public:
 	future_base(future_base&& rhs) noexcept = default;
 	future_base& operator=(future_base&& rhs) noexcept = default;
 
-	future_base(const future_base&) = delete;
-	future_base& operator=(const future_base&) = delete;
+	future_base(const future_base&) = default;
+	future_base& operator=(const future_base&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the future has an associated shared state.
@@ -75,15 +75,14 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
-		state_->thread_id = std::this_thread::get_id();
-
 		while(state_->status == future_status::not_ready)
 		{
 			if(this_thread::notified_for_exit())
 			{
 				break;
 			}
-			this_thread::wait();
+
+			state_->sync.wait();
 		}
 	}
 
@@ -98,21 +97,17 @@ public:
 	template <typename Rep, typename Per>
 	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
-		auto now = clock::now();
-		auto end_time = now + timeout_duration;
-
-		state_->thread_id = std::this_thread::get_id();
-
-		while(state_->status == future_status::not_ready && now < end_time)
+		while(state_->status == future_status::not_ready)
 		{
 			if(this_thread::notified_for_exit())
 			{
 				break;
 			}
-			auto time_left = end_time - now;
-			this_thread::wait_for(time_left);
 
-			now = clock::now();
+			if(state_->sync.wait_for(timeout_duration) == std::cv_status::timeout)
+			{
+				break;
+			}
 		}
 
 		return state_->status;
@@ -125,6 +120,16 @@ public:
 	}
 
 protected:
+	void check_state() const
+	{
+		if(state_->exception)
+		{
+			auto exception = state_->exception;
+			state_->exception = {};
+			std::rethrow_exception(exception);
+		}
+	}
+
 	std::shared_ptr<internal_state<T>> state_;
 };
 
@@ -147,6 +152,16 @@ public:
 		}
 	}
 
+	void set_exception(std::exception_ptr p)
+	{
+		if(!this->state_)
+		{
+			return;
+		}
+		this->state_->exception = p;
+		this->set_status(future_status::error);
+	}
+
 	//-----------------------------------------------------------------------------
 	/// Returns a future associated with the promised result
 	//-----------------------------------------------------------------------------
@@ -166,53 +181,13 @@ protected:
 		}
 		state_->status = status;
 
-		std::thread::id invalid;
-		auto id = state_->thread_id.exchange(invalid);
-		// if waiter thread is set then notify it
-		if(id != invalid)
-		{
-			notify(id);
-		}
+		state_->sync.notify_all();
 	}
 
 	/// The shared state
 	std::shared_ptr<internal_state<T>> state_ = std::make_shared<internal_state<T>>();
 };
 }
-
-template <typename T>
-class future : public detail::future_base<T>
-{
-public:
-	//-----------------------------------------------------------------------------
-	/// The get method waits until the future has a valid
-	/// result and (depending on which template is used) retrieves it.
-	/// It effectively calls wait() in order to wait for the result.
-	//-----------------------------------------------------------------------------
-	T get() const
-	{
-		this->wait();
-
-		auto value = std::move(this->state_->value);
-
-		return *value;
-	}
-};
-
-template <>
-class future<void> : public detail::future_base<void>
-{
-public:
-	//-----------------------------------------------------------------------------
-	/// The get method waits until the future has a valid
-	/// result and (depending on which template is used) retrieves it.
-	/// It effectively calls wait() in order to wait for the result.
-	//-----------------------------------------------------------------------------
-	void get() const
-	{
-		wait();
-	}
-};
 
 template <typename T>
 class promise : public detail::promise_base<T>
@@ -256,4 +231,152 @@ public:
 		set_status(future_status::ready);
 	}
 };
+
+template <typename T>
+class future;
+
+//-----------------------------------------------------------------------------
+/// The class template 'shared_future' provides a mechanism
+/// to access the result of asynchronous operations, similar
+/// to 'future', except that multiple threads are allowed to
+/// wait for the same shared state. Unlike 'future',
+/// which is only moveable (so only one instance can refer
+/// to any particular asynchronous result), 'shared_future' is copyable
+/// and multiple shared future objects may refer to the same shared state.
+/// Access to the same shared state from multiple threads is
+/// safe if each thread does it through its own copy of a 'shared_future' object.
+//-----------------------------------------------------------------------------
+template <typename T>
+class shared_future : public detail::future_base<T>
+{
+	friend class future<T>;
+
+public:
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	//-----------------------------------------------------------------------------
+	const T& get() const
+	{
+		this->wait();
+		this->check_state();
+
+		auto value = this->state_->value;
+		return *value;
+	}
+};
+
+//-----------------------------------------------------------------------------
+/// The class template 'shared_future' provides a mechanism
+/// to access the result of asynchronous operations, similar
+/// to 'future', except that multiple threads are allowed to
+/// wait for the same shared state. Unlike 'future',
+/// which is only moveable (so only one instance can refer
+/// to any particular asynchronous result), 'shared_future' is copyable
+/// and multiple shared future objects may refer to the same shared state.
+/// Access to the same shared state from multiple threads is
+/// safe if each thread does it through its own copy of a 'shared_future' object.
+//-----------------------------------------------------------------------------
+template <>
+class shared_future<void> : public detail::future_base<void>
+{
+	friend class future<void>;
+
+public:
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	//-----------------------------------------------------------------------------
+	void get() const
+	{
+		wait();
+		check_state();
+	}
+};
+
+template <typename T>
+class future : public detail::future_base<T>
+{
+public:
+	future() = default;
+	future(future&& rhs) noexcept = default;
+	future& operator=(future&& rhs) noexcept = default;
+
+	future(const future&) = delete;
+	future& operator=(const future&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	/// Any shared state is released. valid() is false after a call to this method.
+	//-----------------------------------------------------------------------------
+	T get() const
+	{
+		this->wait();
+		this->check_state();
+
+		auto value = std::move(this->state_->value);
+		return *value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Transfers the shared state of *this, if any, to a shared_future object.
+	/// Multiple std::shared_future objects may reference the same shared state,
+	/// which is not possible with std::future.
+	/// After calling share on a std::future, valid() == false.
+	//-----------------------------------------------------------------------------
+	shared_future<T> share()
+	{
+		shared_future<T> sf;
+		sf.state_ = std::move(this->state_);
+		return sf;
+	}
+};
+
+template <>
+class future<void> : public detail::future_base<void>
+{
+public:
+	future() = default;
+	future(future&& rhs) noexcept = default;
+	future& operator=(future&& rhs) noexcept = default;
+
+	future(const future&) = delete;
+	future& operator=(const future&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// The get method waits until the future has a valid
+	/// result and (depending on which template is used) retrieves it.
+	/// It effectively calls wait() in order to wait for the result.
+	/// The behavior is undefined if valid() is false before the call to this function.
+	/// Any shared state is released. valid() is false after a call to this method.
+	//-----------------------------------------------------------------------------
+	void get() const
+	{
+		wait();
+		check_state();
+
+		state_->value.reset();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Transfers the shared state of *this, if any, to a shared_future object.
+	/// Multiple std::shared_future objects may reference the same shared state,
+	/// which is not possible with std::future.
+	/// After calling share on a std::future, valid() == false.
+	//-----------------------------------------------------------------------------
+	shared_future<void> share()
+	{
+		shared_future<void> sf;
+		sf.state_ = std::move(this->state_);
+		return sf;
+	}
+};
+
 }

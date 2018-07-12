@@ -1,10 +1,8 @@
 #pragma once
 #include "future.hpp"
-#include "utility/apply.hpp"
+#include "detail/apply.hpp"
 
 namespace itc
-{
-namespace experimental
 {
 
 namespace detail
@@ -14,7 +12,7 @@ std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promi
 {
     try
 	{
-        p.set_value(apply(std::forward<F>(f), std::forward<Tuple>(args)));
+        p.set_value(itc::apply(std::forward<F>(f), std::forward<Tuple>(args)));
 	}
 	catch(...)
 	{
@@ -33,7 +31,7 @@ std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promis
 {
 	try
 	{
-        apply(std::forward<F>(f), std::forward<Tuple>(args));
+        itc::apply(std::forward<F>(f), std::forward<Tuple>(args));
         p.set_value();
 	}
 	catch(...)
@@ -52,7 +50,7 @@ std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promis
 }
 
 template <class Function, class... Args>
-auto async(std::thread::id id, Function&& func, Args&&... args)
+auto async(thread::id id, Function&& func, Args&&... args)
 {
 	using return_type = invoke_result_t<std::decay_t<Function>, std::decay_t<Args>...>;
 
@@ -68,5 +66,5 @@ auto async(std::thread::id id, Function&& func, Args&&... args)
 
 	return fut;
 }
-}
+
 }

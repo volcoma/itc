@@ -1,5 +1,5 @@
 #include "condition_variable_tests.h"
-#include "itc/experimental/condition_variable.hpp"
+#include "itc/condition_variable.hpp"
 #include "itc/thread.h"
 
 #include <chrono>
@@ -17,7 +17,7 @@ void run_tests(int iterations)
 	{
 		// itc::experimental::condition_variable cv;
 		// for the purpose of testing
-		auto cv = std::make_shared<itc::experimental::condition_variable>();
+		auto cv = std::make_shared<itc::condition_variable>();
 
 		itc::invoke(th1->get_id(), [cv, i]() {
 			std::mutex m;

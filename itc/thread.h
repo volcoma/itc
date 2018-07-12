@@ -5,9 +5,47 @@
 #include <functional>
 #include <thread>
 #include <vector>
+#include <cstdint>
 
 namespace itc
 {
+//-----------------------------------------------------------------------------
+/// std::thread wrapper handling registration and exit notification
+//-----------------------------------------------------------------------------
+class thread : public std::thread
+{
+public:
+    using id = std::uint64_t;
+
+	template <typename F, typename... Args>
+	explicit thread(F&& f, Args&&... args)
+		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
+	{
+        register_this();
+	}
+    //-----------------------------------------------------------------------------
+    /// Destructs the thread object. Notifies and joins if joinable.
+    //-----------------------------------------------------------------------------
+    ~thread();
+
+    //-----------------------------------------------------------------------------
+    /// Returns the unique id of the thread
+    //-----------------------------------------------------------------------------
+    id get_id() const;
+
+    //-----------------------------------------------------------------------------
+    /// Notifies and waits for a thread to finish its execution
+    //-----------------------------------------------------------------------------
+	void join();
+
+
+private:
+    void register_this();
+
+    id id_;
+};
+
+using shared_thread = std::shared_ptr<thread>;
 using task = std::function<void()>;
 using clock = std::chrono::steady_clock;
 
@@ -26,75 +64,51 @@ void init(const utility_callbacks& callbacks = {});
 //-----------------------------------------------------------------------------
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
 //-----------------------------------------------------------------------------
-void shutdown();
+void shutdown(const std::chrono::milliseconds& wait_time = std::chrono::milliseconds(5));
 
 //-----------------------------------------------------------------------------
 /// Retrieves all registered thread ids.
 //-----------------------------------------------------------------------------
-std::vector<std::thread::id> get_all_registered_threads();
+std::vector<thread::id> get_all_registered_threads();
+
+//-----------------------------------------------------------------------------
+/// Gets an invalid thread::id
+//-----------------------------------------------------------------------------
+thread::id invalid_id();
 
 //-----------------------------------------------------------------------------
 /// Retrieves the main thread id.
 //-----------------------------------------------------------------------------
-std::thread::id get_main_id();
+thread::id get_main_id();
 
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
 //-----------------------------------------------------------------------------
-void invoke(std::thread::id id, task func);
+void invoke(thread::id id, task func);
 
 //-----------------------------------------------------------------------------
 /// If the thread is the current one then execute the task directly
 /// else behave like invoke.
 //-----------------------------------------------------------------------------
-void run_or_invoke(std::thread::id id, task func);
+void run_or_invoke(thread::id, task func);
 
 //-----------------------------------------------------------------------------
 /// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
 //-----------------------------------------------------------------------------
-void notify(std::thread::id id);
+void notify(thread::id id);
 
 //-----------------------------------------------------------------------------
 /// Wakes up and notifies a thread that it should start preparing for exit.
 /// It does not join the thread.
 //-----------------------------------------------------------------------------
-void notify_for_exit(std::thread::id id);
+void notify_for_exit(thread::id id);
 
 //-----------------------------------------------------------------------------
-/// Registers a thread in the itc system
+/// Registers a thread by the native thread id.
+/// Returns the unique generated id that can be used with the rest of the api.
 //-----------------------------------------------------------------------------
-void register_thread(std::thread::id id);
+thread::id register_thread(std::thread::id id);
 
-//-----------------------------------------------------------------------------
-/// std::thread wrapper handling registration and exit notification
-//-----------------------------------------------------------------------------
-class thread : public std::thread
-{
-public:
-	template <typename Callable, typename... Args>
-	explicit thread(Callable&& f, Args&&... args)
-		: std::thread(std::forward<Callable>(f), std::forward<Args>(args)...)
-	{
-		register_thread(get_id());
-	}
-
-	void join()
-	{
-		notify_for_exit(get_id());
-		std::thread::join();
-	}
-
-	~thread()
-	{
-		notify_for_exit(get_id());
-		if(joinable())
-		{
-			join();
-		}
-	}
-};
-
-using shared_thread = std::shared_ptr<thread>;
 //-----------------------------------------------------------------------------
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
@@ -123,6 +137,10 @@ bool notified_for_exit();
 //-----------------------------------------------------------------------------
 void process();
 
+//-----------------------------------------------------------------------------
+/// Gets the current thread id. Returns invalid id if not registered.
+//-----------------------------------------------------------------------------
+thread::id get_id();
 //-----------------------------------------------------------------------------
 /// Check is this thread the main thread
 //-----------------------------------------------------------------------------
@@ -174,12 +192,15 @@ void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 //-----------------------------------------------------------------------------
 namespace itc
 {
+
 namespace this_thread
 {
 namespace detail
 {
 std::cv_status wait_for(const std::chrono::nanoseconds& rtime);
+
 }
+
 
 template <typename Rep, typename Period>
 inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)

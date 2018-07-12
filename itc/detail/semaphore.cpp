@@ -1,10 +1,7 @@
 #include "semaphore.h"
-#include "../thread.h"
 #include <algorithm>
 
 namespace itc
-{
-namespace experimental
 {
 
 void semaphore::notify_one() noexcept
@@ -25,7 +22,7 @@ void semaphore::notify_one() noexcept
 		return waiter_info();
 	}();
 
-	if(waiter.id != std::thread::id())
+	if(waiter.id != invalid_id())
 	{
 		waiter.flag->store(true);
 
@@ -43,7 +40,7 @@ void semaphore::notify_all() noexcept
 
 	for(const auto& waiter : waiters)
 	{
-		if(waiter.id != std::thread::id())
+		if(waiter.id != invalid_id())
 		{
 			waiter.flag->store(true);
 
@@ -54,7 +51,7 @@ void semaphore::notify_all() noexcept
 
 void semaphore::wait(const callback& before_wait, const callback& after_wait) const
 {
-	auto id = std::this_thread::get_id();
+	auto id = this_thread::get_id();
 
 	/// flag is shared_ptr of atomic bool
 	/// note: we may be the last reference to the
@@ -92,7 +89,7 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 	auto now = clock::now();
 	auto end_time = now + timeout_duration;
 
-	auto id = std::this_thread::get_id();
+	auto id = this_thread::get_id();
 
 	/// flag is shared_ptr of atomic bool
 	/// note: we may be the last reference to the
@@ -160,4 +157,4 @@ void semaphore::remove_waiter(thread::id id) const
 	waiters_.remove_if([&id](const waiter_info& waiter) { return waiter.id == id; });
 }
 }
-}
+
