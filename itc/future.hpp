@@ -291,7 +291,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value()
 	{
-		set_status(future_status::ready);
+		set_value_impl();
 	}
 
 private:
