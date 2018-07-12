@@ -178,7 +178,7 @@ public:
 
 	~basic_promise()
 	{
-		if(state_ && state_->status == future_status::not_ready)
+        if(state_ && !stored_any_result(state_))
 		{
 			auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
 			set_exception(exception);
@@ -217,8 +217,6 @@ public:
 protected:
 	void set_status(future_status status)
 	{
-		state_check(state_);
-
 		state_->status = status;
 
 		state_->sync.notify_all();
@@ -286,25 +284,20 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value()
 	{
-		set_value_impl();
-	}
+        state_check(state_);
 
-private:
-	void set_value_impl()
-	{
-		state_check(this->state_);
+		std::unique_lock<std::mutex> lock(state_->mutex);
 
-		std::unique_lock<std::mutex> lock(this->state_->mutex);
-
-		if(!stored_any_result(this->state_))
+		if(!stored_any_result(state_))
 		{
-			this->set_status(future_status::ready);
+			set_status(future_status::ready);
 		}
 		else
 		{
 			throw std::future_error(std::future_errc::promise_already_satisfied);
 		}
 	}
+
 };
 
 template <typename T>

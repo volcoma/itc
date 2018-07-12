@@ -173,7 +173,7 @@ public:
 
 	~basic_promise()
 	{
-		if(state_ && state_->status == future_status::not_ready)
+		if(state_ && !stored_any_result(state_))
 		{
 			auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
 			set_exception(exception);
@@ -216,11 +216,8 @@ public:
 	}
 
 protected:
-
 	void set_status(future_status status)
 	{
-		state_check(state_);
-
 		state_->status = status;
 
 		state_->sync.notify_all();
@@ -290,12 +287,6 @@ public:
 	/// Sets the result to specific value
 	//-----------------------------------------------------------------------------
 	void set_value()
-	{
-		set_value_impl();
-	}
-
-private:
-	void set_value_impl()
 	{
 		state_check(this->state_);
 
