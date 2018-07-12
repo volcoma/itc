@@ -156,7 +156,6 @@ protected:
 		std::unique_lock<std::mutex> lock(state_->mutex);
 
 		auto exception = state_->exception;
-		state_->exception = nullptr;
 		if(exception)
 		{
 			std::rethrow_exception(exception);

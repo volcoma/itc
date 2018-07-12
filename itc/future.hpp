@@ -151,7 +151,6 @@ protected:
 	void check_for_exception() const
 	{
 		auto exception = state_->exception;
-		state_->exception = nullptr;
 		if(exception)
 		{
 			std::rethrow_exception(exception);
@@ -186,12 +185,12 @@ public:
 		state_check(state_);
 
 		bool did_set = false;
-		auto set_impl = [this, &p](bool& did_set) {
+		auto set_impl = [this, &p, &did_set]() {
 			state_->exception = p;
 			did_set = true;
 		};
 
-		std::call_once(state_->once, set_impl, did_set);
+		std::call_once(state_->once, set_impl);
 
 		if(did_set)
 		{
@@ -217,6 +216,7 @@ public:
 	}
 
 protected:
+
 	void set_status(future_status status)
 	{
 		state_check(state_);
@@ -265,12 +265,12 @@ private:
 		state_check(this->state_);
 
 		bool did_set = false;
-		auto set_impl = [this, &value](bool& did_set) {
+		auto set_impl = [this, &value, &did_set]() {
 			this->state_->value = std::make_shared<T>(value);
 			did_set = true;
 		};
 
-		std::call_once(this->state_->once, set_impl, did_set);
+		std::call_once(this->state_->once, set_impl);
 
 		if(did_set)
 		{
@@ -300,9 +300,9 @@ private:
 		state_check(this->state_);
 
 		bool did_set = false;
-		auto set_impl = [](bool& did_set) { did_set = true; };
+		auto set_impl = [&did_set]() { did_set = true; };
 
-		std::call_once(this->state_->once, set_impl, did_set);
+		std::call_once(this->state_->once, set_impl);
 
 		if(did_set)
 		{
