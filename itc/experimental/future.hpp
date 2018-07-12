@@ -27,6 +27,7 @@ template <typename T>
 struct internal_state
 {
 	semaphore sync;
+	std::exception_ptr exception;
 	std::shared_ptr<T> value;
 	std::atomic<future_status> status = {future_status::not_ready};
 };
@@ -122,6 +123,16 @@ public:
 	}
 
 protected:
+	void check_state() const
+	{
+		if(state_->exception)
+		{
+			auto exception = state_->exception;
+			state_->exception = {};
+			std::rethrow_exception(exception);
+		}
+	}
+
 	std::shared_ptr<internal_state<T>> state_;
 };
 
@@ -142,6 +153,16 @@ public:
 		{
 			set_status(future_status::error);
 		}
+	}
+
+	void set_exception(std::exception_ptr p)
+	{
+		if(!this->state_)
+		{
+			return;
+		}
+		this->state_->exception = p;
+		this->set_status(future_status::error);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -217,7 +238,6 @@ public:
 template <typename T>
 class future;
 
-
 //-----------------------------------------------------------------------------
 /// The class template 'shared_future' provides a mechanism
 /// to access the result of asynchronous operations, similar
@@ -235,7 +255,7 @@ class shared_future : public detail::future_base<T>
 	friend class future<T>;
 
 public:
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
@@ -244,12 +264,12 @@ public:
 	const T& get() const
 	{
 		this->wait();
+		this->check_state();
 
 		auto value = this->state_->value;
 		return *value;
 	}
 };
-
 
 //-----------------------------------------------------------------------------
 /// The class template 'shared_future' provides a mechanism
@@ -268,7 +288,7 @@ class shared_future<void> : public detail::future_base<void>
 	friend class future<void>;
 
 public:
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
@@ -277,6 +297,7 @@ public:
 	void get() const
 	{
 		wait();
+		check_state();
 	}
 };
 
@@ -296,11 +317,12 @@ public:
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
 	/// The behavior is undefined if valid() is false before the call to this function.
-    /// Any shared state is released. valid() is false after a call to this method.
+	/// Any shared state is released. valid() is false after a call to this method.
 	//-----------------------------------------------------------------------------
 	T get() const
 	{
 		this->wait();
+		this->check_state();
 
 		auto value = std::move(this->state_->value);
 		return *value;
@@ -331,16 +353,17 @@ public:
 	future(const future&) = delete;
 	future& operator=(const future&) = delete;
 
-    //-----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
 	/// The behavior is undefined if valid() is false before the call to this function.
-    /// Any shared state is released. valid() is false after a call to this method.
+	/// Any shared state is released. valid() is false after a call to this method.
 	//-----------------------------------------------------------------------------
 	void get() const
 	{
 		wait();
+		check_state();
 
 		state_->value.reset();
 	}

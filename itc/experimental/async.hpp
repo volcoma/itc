@@ -10,15 +10,44 @@ namespace experimental
 namespace detail
 {
 template <typename T, typename F, typename Tuple>
-std::enable_if_t<!std::is_same<T, void>::value> set_promise_value(promise<T>& p, F&& f, Tuple&& args)
+std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
 {
-	p.set_value(apply(std::forward<F>(f), std::forward<Tuple>(args)));
+    try
+	{
+        p.set_value(apply(std::forward<F>(f), std::forward<Tuple>(args)));
+	}
+	catch(...)
+	{
+		try
+		{
+			// store anything thrown in the promise
+			p.set_exception(std::current_exception());
+		}
+		catch(...)
+		{
+		} // set_exception() may throw too
+	}
 }
 template <typename T, typename F, typename Tuple>
-std::enable_if_t<std::is_same<T, void>::value> set_promise_value(promise<T>& p, F&& f, Tuple&& args)
+std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
 {
-	apply(std::forward<F>(f), std::forward<Tuple>(args));
-	p.set_value();
+	try
+	{
+        apply(std::forward<F>(f), std::forward<Tuple>(args));
+        p.set_value();
+	}
+	catch(...)
+	{
+		try
+		{
+			// store anything thrown in the promise
+			p.set_exception(std::current_exception());
+		}
+		catch(...)
+		{
+		} // set_exception() may throw too
+	}
+
 }
 }
 
@@ -35,7 +64,7 @@ auto async(std::thread::id id, Function&& func, Args&&... args)
 	auto t = capture(tuple_args);
 	auto f = capture(func);
 
-	invoke(id, [f, t, p]() mutable { detail::set_promise_value(p.get(), f.get(), t.get()); });
+	invoke(id, [f, t, p]() mutable { detail::call_and_set_promise_value(p.get(), f.get(), t.get()); });
 
 	return fut;
 }
