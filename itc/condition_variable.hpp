@@ -79,6 +79,6 @@ public:
 	}
 
 private:
-	semaphore sync_;
+	detail::semaphore sync_;
 };
 }

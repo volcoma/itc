@@ -1,13 +1,14 @@
 #pragma once
 
-#include "detail/semaphore.h"
+#include "condition_variable.hpp"
 #include "thread.h"
 #include "utility.hpp"
 #include <future>
 
 namespace itc
 {
-
+namespace experimental
+{
 enum class future_status : unsigned
 {
 	not_ready,
@@ -25,15 +26,12 @@ namespace detail
 template <typename T>
 struct internal_state
 {
-	semaphore sync;
+	std::mutex mutex;
+	condition_variable sync;
 	std::shared_ptr<T> value;
 	std::exception_ptr exception;
-	std::atomic<future_status> status = {future_status::not_ready};
-
-	// These are here so that constructors of both
-	// future and promise can remain noexcept
-	std::once_flag once;
-	std::atomic_flag retrieved_ = ATOMIC_FLAG_INIT;
+	future_status status = future_status::not_ready;
+	bool retrieved_ = false;
 };
 
 template <typename T>
@@ -48,6 +46,7 @@ inline bool stored_any_result(const std::shared_ptr<internal_state<T>>& state)
 {
 	return state->status != future_status::not_ready;
 }
+
 template <typename T>
 class basic_promise;
 
@@ -101,6 +100,8 @@ public:
 	{
 		state_check(state_);
 
+		std::unique_lock<std::mutex> lock(state_->mutex);
+
 		while(!stored_any_result(state_))
 		{
 			if(this_thread::notified_for_exit())
@@ -108,7 +109,7 @@ public:
 				break;
 			}
 
-			state_->sync.wait();
+			state_->sync.wait(lock);
 		}
 	}
 
@@ -125,6 +126,8 @@ public:
 	{
 		state_check(state_);
 
+		std::unique_lock<std::mutex> lock(state_->mutex);
+
 		while(!stored_any_result(state_))
 		{
 			if(this_thread::notified_for_exit())
@@ -132,7 +135,7 @@ public:
 				break;
 			}
 
-			if(state_->sync.wait_for(timeout_duration) == std::cv_status::timeout)
+			if(state_->sync.wait_for(lock, timeout_duration) == std::cv_status::timeout)
 			{
 				break;
 			}
@@ -150,6 +153,8 @@ public:
 protected:
 	void check_for_exception() const
 	{
+		std::unique_lock<std::mutex> lock(state_->mutex);
+
 		auto exception = state_->exception;
 		state_->exception = nullptr;
 		if(exception)
@@ -184,17 +189,11 @@ public:
 	void set_exception(std::exception_ptr p)
 	{
 		state_check(state_);
+		std::unique_lock<std::mutex> lock(state_->mutex);
 
-		bool did_set = false;
-		auto set_impl = [this, &p](bool& did_set) {
-			state_->exception = p;
-			did_set = true;
-		};
-
-		std::call_once(state_->once, set_impl, did_set);
-
-		if(did_set)
+		if(!stored_any_result(state_))
 		{
+			state_->exception = p;
 			set_status(future_status::error);
 		}
 		else
@@ -228,10 +227,13 @@ protected:
 
 	void set_retrieved_flag()
 	{
-		if(state_->retrieved_.test_and_set())
+		std::unique_lock<std::mutex> lock(state_->mutex);
+
+		if(state_->retrieved_)
 		{
 			throw std::future_error(std::future_errc::future_already_retrieved);
 		}
+		state_->retrieved_ = true;
 	}
 
 	/// The shared state
@@ -263,17 +265,11 @@ private:
 	void set_value_impl(const T& value)
 	{
 		state_check(this->state_);
+		std::unique_lock<std::mutex> lock(this->state_->mutex);
 
-		bool did_set = false;
-		auto set_impl = [this, &value](bool& did_set) {
-			this->state_->value = std::make_shared<T>(value);
-			did_set = true;
-		};
-
-		std::call_once(this->state_->once, set_impl, did_set);
-
-		if(did_set)
+		if(!stored_any_result(this->state_))
 		{
+			this->state_->value = std::make_shared<T>(value);
 			this->set_status(future_status::ready);
 		}
 		else
@@ -291,7 +287,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value()
 	{
-		set_status(future_status::ready);
+		set_value_impl();
 	}
 
 private:
@@ -299,12 +295,9 @@ private:
 	{
 		state_check(this->state_);
 
-		bool did_set = false;
-		auto set_impl = [](bool& did_set) { did_set = true; };
+		std::unique_lock<std::mutex> lock(this->state_->mutex);
 
-		std::call_once(this->state_->once, set_impl, did_set);
-
-		if(did_set)
+		if(!stored_any_result(this->state_))
 		{
 			this->set_status(future_status::ready);
 		}
@@ -338,8 +331,10 @@ public:
 		this->wait();
 		this->check_for_exception();
 
-		auto value = std::move(this->state_->value);
-		this->state_.reset();
+		auto state = std::move(this->state_);
+
+		std::unique_lock<std::mutex> lock(state->mutex);
+		auto value = std::move(state->value);
 		return std::move(*value);
 	}
 
@@ -374,6 +369,7 @@ public:
 	{
 		wait();
 		check_for_exception();
+
 		state_.reset();
 	}
 
@@ -426,6 +422,7 @@ public:
 		this->wait();
 		this->check_for_exception();
 
+		std::unique_lock<std::mutex> lock(this->state_->mutex);
 		auto value = this->state_->value;
 		return *value;
 	}
@@ -481,5 +478,6 @@ inline shared_future<T> future<T>::share()
 inline shared_future<void> future<void>::share()
 {
 	return shared_future<void>(std::move(*this));
+}
 }
 }

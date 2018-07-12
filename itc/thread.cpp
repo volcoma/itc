@@ -163,9 +163,8 @@ void init(const utility_callbacks& callbacks)
 	log_info_func("Successful.");
 }
 
-void shutdown(const std::chrono::milliseconds& timeout)
+void shutdown(const std::chrono::seconds& timeout)
 {
-
 	itc::this_thread::unregister_and_unlink();
 
 	log_info_func("Notifying and waiting for threads to complete.");
