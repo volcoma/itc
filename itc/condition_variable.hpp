@@ -75,4 +75,4 @@ public:
 private:
 	detail::semaphore sync_;
 };
-}
+} // namespace itc

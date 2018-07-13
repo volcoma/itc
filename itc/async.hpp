@@ -46,7 +46,7 @@ std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promis
 		} // set_exception() may throw too
 	}
 }
-}
+} // namespace detail
 
 template <class Function, class... Args>
 auto async(thread::id id, Function&& func, Args&&... args)
@@ -65,4 +65,4 @@ auto async(thread::id id, Function&& func, Args&&... args)
 
 	return fut;
 }
-}
+} // namespace itc

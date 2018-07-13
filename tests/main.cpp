@@ -1,8 +1,6 @@
 #include "itc/future.hpp"
 #include "itc/thread.h"
 #include "itc/utility.hpp"
-#include "lib1/lib1.h"
-#include "lib2/lib2.h"
 
 #include "async_tests.h"
 #include "condition_variable_tests.h"

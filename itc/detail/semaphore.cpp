@@ -158,5 +158,5 @@ void semaphore::remove_waiter(thread::id id) const
 
 	waiters_.remove_if([&id](const waiter_info& waiter) { return waiter.id == id; });
 }
-}
-}
+} // namespace detail
+} // namespace itc

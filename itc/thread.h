@@ -183,8 +183,8 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 //-----------------------------------------------------------------------------
 template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
-}
-}
+} // namespace this_thread
+} // namespace itc
 
 //-----------------------------------------------------------------------------
 /// Impl
@@ -248,5 +248,5 @@ inline void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time
 {
 	sleep_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 }
-}
-}
+} // namespace this_thread
+} // namespace itc

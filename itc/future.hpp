@@ -8,9 +8,11 @@
 namespace itc
 {
 
+/// The implementations here are based on and inspired by libstd++
+
 enum class future_status : unsigned
 {
-	not_ready,
+	not_set,
 	ready,
 	error
 };
@@ -28,7 +30,7 @@ struct internal_state
 	semaphore sync;
 	std::shared_ptr<T> value;
 	std::exception_ptr exception;
-	std::atomic<future_status> status = {future_status::not_ready};
+	std::atomic<future_status> status = {future_status::not_set};
 
 	// These are here so that constructors of both
 	// future and promise can remain noexcept
@@ -39,14 +41,22 @@ struct internal_state
 template <typename T>
 inline void state_check(const std::shared_ptr<T>& p)
 {
-	if(!static_cast<bool>(p))
+	if(!p)
+	{
 		throw std::future_error(std::future_errc::no_state);
+	}
 }
 
 template <typename T>
-inline bool stored_any_result(const std::shared_ptr<internal_state<T>>& state)
+inline void state_invalidate(std::shared_ptr<T>& p)
 {
-	return state->status != future_status::not_ready;
+	p.reset();
+}
+
+template <typename T>
+inline bool nothing_is_set(const std::shared_ptr<internal_state<T>>& state)
+{
+	return state->status == future_status::not_set;
 }
 template <typename T>
 class basic_promise;
@@ -101,7 +111,7 @@ public:
 	{
 		state_check(state_);
 
-		while(!stored_any_result(state_))
+		while(nothing_is_set(state_))
 		{
 			if(this_thread::notified_for_exit())
 			{
@@ -125,7 +135,7 @@ public:
 	{
 		state_check(state_);
 
-		while(!stored_any_result(state_))
+		while(nothing_is_set(state_))
 		{
 			if(this_thread::notified_for_exit())
 			{
@@ -150,13 +160,17 @@ public:
 protected:
 	void check_for_exception() const
 	{
+		state_check(state_);
+
 		auto exception = state_->exception;
+
 		if(exception)
 		{
 			std::rethrow_exception(exception);
 		}
 	}
 
+	/// The shared state
 	std::shared_ptr<internal_state<T>> state_;
 };
 
@@ -173,7 +187,7 @@ public:
 
 	~basic_promise()
 	{
-		if(state_ && !stored_any_result(state_))
+		if(state_ && nothing_is_set(state_))
 		{
 			auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
 			set_exception(exception);
@@ -182,24 +196,8 @@ public:
 
 	void set_exception(std::exception_ptr p)
 	{
-		state_check(state_);
-
-		bool did_set = false;
-		auto set_impl = [this, &p, &did_set]() {
-			state_->exception = p;
-			did_set = true;
-		};
-
-		std::call_once(state_->once, set_impl);
-
-		if(did_set)
-		{
-			set_status(future_status::error);
-		}
-		else
-		{
-			throw std::future_error(std::future_errc::promise_already_satisfied);
-		}
+		auto set_impl = [this, &p]() { state_->exception = p; };
+		set_value_and_status(set_impl, future_status::error);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -231,10 +229,31 @@ protected:
 		}
 	}
 
+	void set_value_and_status(const std::function<void()>& f, future_status status)
+	{
+		state_check(this->state_);
+
+		bool did_set = false;
+		auto set_impl = [&f, &did_set]() {
+			f();
+			did_set = true;
+		};
+
+		std::call_once(this->state_->once, set_impl);
+		if(did_set)
+		{
+			this->set_status(status);
+		}
+		else
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
+	}
+
 	/// The shared state
 	std::shared_ptr<internal_state<T>> state_ = std::make_shared<internal_state<T>>();
 };
-}
+} // namespace detail
 
 template <typename T>
 class promise : public detail::basic_promise<T>
@@ -245,7 +264,11 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value(T&& value)
 	{
-		set_value_impl(std::forward<T>(value));
+		const auto set_impl = [this, &value]() {
+			this->state_->value = std::make_shared<T>(std::move(value));
+		};
+
+		this->set_value_and_status(set_impl, future_status::ready);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -253,30 +276,9 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value(const T& value)
 	{
-		set_value_impl(value);
-	}
+		const auto set_impl = [this, &value]() { this->state_->value = std::make_shared<T>(value); };
 
-private:
-	void set_value_impl(const T& value)
-	{
-		state_check(this->state_);
-
-		bool did_set = false;
-		auto set_impl = [this, &value, &did_set]() {
-			this->state_->value = std::make_shared<T>(value);
-			did_set = true;
-		};
-
-		std::call_once(this->state_->once, set_impl);
-
-		if(did_set)
-		{
-			this->set_status(future_status::ready);
-		}
-		else
-		{
-			throw std::future_error(std::future_errc::promise_already_satisfied);
-		}
+		this->set_value_and_status(set_impl, future_status::ready);
 	}
 };
 template <>
@@ -288,21 +290,8 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value()
 	{
-		state_check(this->state_);
-
-		bool did_set = false;
-		auto set_impl = [&did_set]() { did_set = true; };
-
-		std::call_once(this->state_->once, set_impl);
-
-		if(did_set)
-		{
-			this->set_status(future_status::ready);
-		}
-		else
-		{
-			throw std::future_error(std::future_errc::promise_already_satisfied);
-		}
+		const auto set_impl = []() {};
+		set_value_and_status(set_impl, future_status::ready);
 	}
 };
 
@@ -321,16 +310,20 @@ public:
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
-	/// The behavior is undefined if valid() is false before the call to this function.
-	/// Any shared state is released. valid() is false after a call to this method.
+	/// The behavior is undefined if valid() is false before the call to this
+	/// function. Any shared state is released. valid() is false after a call to
+	/// this method.
 	//-----------------------------------------------------------------------------
 	T get()
 	{
 		this->wait();
+
 		this->check_for_exception();
 
 		auto value = std::move(this->state_->value);
-		this->state_.reset();
+
+		state_invalidate(this->state_);
+
 		return std::move(*value);
 	}
 
@@ -358,14 +351,17 @@ public:
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
-	/// The behavior is undefined if valid() is false before the call to this function.
-	/// Any shared state is released. valid() is false after a call to this method.
+	/// The behavior is undefined if valid() is false before the call to this
+	/// function. Any shared state is released. valid() is false after a call to
+	/// this method.
 	//-----------------------------------------------------------------------------
 	void get()
 	{
 		wait();
+
 		check_for_exception();
-		state_.reset();
+
+		state_invalidate(state_);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -386,7 +382,8 @@ public:
 /// to any particular asynchronous result), 'shared_future' is copyable
 /// and multiple shared future objects may refer to the same shared state.
 /// Access to the same shared state from multiple threads is
-/// safe if each thread does it through its own copy of a 'shared_future' object.
+/// safe if each thread does it through its own copy of a 'shared_future'
+/// object.
 //-----------------------------------------------------------------------------
 template <typename T>
 class shared_future : public detail::basic_future<T>
@@ -410,7 +407,8 @@ public:
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
-	/// The behavior is undefined if valid() is false before the call to this function.
+	/// The behavior is undefined if valid() is false before the call to this
+	/// function.
 	//-----------------------------------------------------------------------------
 	const T& get() const
 	{
@@ -431,7 +429,8 @@ public:
 /// to any particular asynchronous result), 'shared_future' is copyable
 /// and multiple shared future objects may refer to the same shared state.
 /// Access to the same shared state from multiple threads is
-/// safe if each thread does it through its own copy of a 'shared_future' object.
+/// safe if each thread does it through its own copy of a 'shared_future'
+/// object.
 //-----------------------------------------------------------------------------
 template <>
 class shared_future<void> : public detail::basic_future<void>
@@ -454,7 +453,8 @@ public:
 	/// The get method waits until the future has a valid
 	/// result and (depending on which template is used) retrieves it.
 	/// It effectively calls wait() in order to wait for the result.
-	/// The behavior is undefined if valid() is false before the call to this function.
+	/// The behavior is undefined if valid() is false before the call to this
+	/// function.
 	//-----------------------------------------------------------------------------
 	void get() const
 	{
@@ -473,4 +473,4 @@ inline shared_future<void> future<void>::share()
 {
 	return shared_future<void>(std::move(*this));
 }
-}
+} // namespace itc

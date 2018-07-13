@@ -50,4 +50,4 @@ void run_tests(int iterations)
 		cv->notify_all();
 	}
 }
-}
+} // namespace cv_tests

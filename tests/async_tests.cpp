@@ -41,4 +41,4 @@ void run_tests(int iterations)
 		std::cout << "ASYNC TEST " << i << " completed" << std::endl;
 	}
 }
-}
+} // namespace async_tests

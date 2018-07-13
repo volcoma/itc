@@ -434,7 +434,7 @@ void wait()
 
 	process_one(lock);
 }
-}
+} // namespace detail
 
 void register_and_link()
 {
@@ -500,7 +500,7 @@ bool is_main_thread()
 {
 	return this_thread::get_id() == get_main_id();
 }
-}
+} // namespace this_thread
 
 shared_thread run_thread(const std::string& name)
 {
@@ -548,4 +548,4 @@ thread::~thread()
 		join();
 	}
 }
-}
+} // namespace itc

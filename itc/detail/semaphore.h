@@ -90,5 +90,5 @@ protected:
 	mutable std::mutex mutex_;
 	mutable std::list<waiter_info> waiters_;
 };
-}
-}
+} // namespace detail
+} // namespace itc

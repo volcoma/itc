@@ -31,10 +31,9 @@ void run_tests(int iterations)
 		(void)val0;
 		std::cout << "future woke up for " << i << std::endl;
 		std::cout << "FUTURE TEST " << i << " completed" << std::endl;
-	} 
+	}
 
-
-    auto thread2 = itc::run_thread();
+	auto thread2 = itc::run_thread();
 	auto th_id2 = thread2->get_id();
 
 	for(int i = 0; i < iterations; ++i)
@@ -50,10 +49,10 @@ void run_tests(int iterations)
 
 			p.get().set_value(5);
 		});
-        itc::invoke(th_id2, [fut, i]() mutable {
-            std::cout << "th2 waiting on shared_future for " << i << std::endl;
+		itc::invoke(th_id2, [fut, i]() mutable {
+			std::cout << "th2 waiting on shared_future for " << i << std::endl;
 			fut.wait_for(std::chrono::milliseconds(20));
-            std::cout << "th2 woke up on shared_future for " << i << std::endl;
+			std::cout << "th2 woke up on shared_future for " << i << std::endl;
 		});
 		std::cout << "th0 waiting on shared_future for " << i << std::endl;
 		fut.wait_for(std::chrono::milliseconds(10));
@@ -63,4 +62,4 @@ void run_tests(int iterations)
 		std::cout << "SHARED FUTURE TEST " << i << " completed" << std::endl;
 	}
 }
-}
+} // namespace future_promise_tests

@@ -48,4 +48,4 @@ move_on_copy_t<T> capture(T& value)
 {
 	return monc(value);
 }
-}
+} // namespace itc
