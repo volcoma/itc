@@ -20,14 +20,8 @@ public:
 	{
 	}
 
-	const T& get() const
-	{
-		return value_;
-	}
-	T& get()
-	{
-		return value_;
-	}
+	const T& get() const { return value_; }
+	T& get() { return value_; }
 
 private:
 	mutable T value_;

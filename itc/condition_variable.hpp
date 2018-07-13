@@ -19,17 +19,11 @@ public:
 	/// If any threads are waiting on *this,
 	/// calling notify_one unblocks one of the waiting threads.
 	//-----------------------------------------------------------------------------
-	void notify_one() noexcept
-	{
-		sync_.notify_one();
-	}
+	void notify_one() noexcept { sync_.notify_one(); }
 	//-----------------------------------------------------------------------------
 	/// Unblocks all threads currently waiting for *this.
 	//-----------------------------------------------------------------------------
-	void notify_all() noexcept
-	{
-		sync_.notify_all();
-	}
+	void notify_all() noexcept { sync_.notify_all(); }
 	//-----------------------------------------------------------------------------
 	/// Waits for the result to become available
 	//-----------------------------------------------------------------------------

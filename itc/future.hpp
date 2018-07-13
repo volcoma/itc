@@ -9,14 +9,6 @@ namespace itc
 {
 
 /// The implementations here are based on and inspired by libstd++
-
-enum class future_status : unsigned
-{
-	not_set,
-	ready,
-	error
-};
-
 template <typename T>
 class future;
 template <typename T>
@@ -24,13 +16,21 @@ class shared_future;
 
 namespace detail
 {
+
+enum class value_status : unsigned
+{
+	not_set,
+	ready,
+	error
+};
+
 template <typename T>
 struct internal_state
 {
 	semaphore sync;
 	std::shared_ptr<T> value;
 	std::exception_ptr exception;
-	std::atomic<future_status> status = {future_status::not_set};
+	std::atomic<value_status> status = {value_status::not_set};
 
 	// These are here so that constructors of both
 	// future and promise can remain noexcept
@@ -56,7 +56,7 @@ inline void state_invalidate(std::shared_ptr<T>& p)
 template <typename T>
 inline bool nothing_is_set(const std::shared_ptr<internal_state<T>>& state)
 {
-	return state->status == future_status::not_set;
+	return state->status == value_status::not_set;
 }
 template <typename T>
 class basic_promise;
@@ -79,10 +79,7 @@ public:
 	/// This is the case only for futures that were not default-constructed or
 	/// moved from (i.e. returned by promise::get_future()
 	//-----------------------------------------------------------------------------
-	bool valid() const
-	{
-		return state_ != nullptr;
-	}
+	bool valid() const { return state_ != nullptr; }
 
 	//-----------------------------------------------------------------------------
 	/// Checks whether the result is ready.
@@ -91,7 +88,7 @@ public:
 	{
 		state_check(state_);
 
-		return state_->status == future_status::ready;
+		return state_->status == value_status::ready;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -101,7 +98,7 @@ public:
 	{
 		state_check(state_);
 
-		return state_->status == future_status::error;
+		return state_->status == value_status::error;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -131,7 +128,7 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <typename Rep, typename Per>
-	future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
+	std::future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
 		state_check(state_);
 
@@ -139,20 +136,20 @@ public:
 		{
 			if(this_thread::notified_for_exit())
 			{
-				break;
+				return std::future_status::deferred;
 			}
 
 			if(state_->sync.wait_for(timeout_duration) == std::cv_status::timeout)
 			{
-				break;
+				return std::future_status::timeout;
 			}
 		}
 
-		return state_->status;
+		return std::future_status::ready;
 	}
 
 	template <typename Clock, typename Duration>
-	future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
+	std::future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
 	{
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 	}
@@ -197,7 +194,7 @@ public:
 	void set_exception(std::exception_ptr p)
 	{
 		auto set_impl = [this, &p]() { state_->exception = p; };
-		set_value_and_status(set_impl, future_status::error);
+		set_value_and_status(set_impl, value_status::error);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -214,7 +211,7 @@ public:
 	}
 
 protected:
-	void set_status(future_status status)
+	void set_status(value_status status)
 	{
 		state_->status = status;
 
@@ -229,7 +226,7 @@ protected:
 		}
 	}
 
-	void set_value_and_status(const std::function<void()>& f, future_status status)
+	void set_value_and_status(const std::function<void()>& f, value_status status)
 	{
 		state_check(this->state_);
 
@@ -268,7 +265,7 @@ public:
 			this->state_->value = std::make_shared<T>(std::move(value));
 		};
 
-		this->set_value_and_status(set_impl, future_status::ready);
+		this->set_value_and_status(set_impl, detail::value_status::ready);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -278,7 +275,7 @@ public:
 	{
 		const auto set_impl = [this, &value]() { this->state_->value = std::make_shared<T>(value); };
 
-		this->set_value_and_status(set_impl, future_status::ready);
+		this->set_value_and_status(set_impl, detail::value_status::ready);
 	}
 };
 template <>
@@ -291,7 +288,7 @@ public:
 	void set_value()
 	{
 		const auto set_impl = []() {};
-		set_value_and_status(set_impl, future_status::ready);
+		set_value_and_status(set_impl, detail::value_status::ready);
 	}
 };
 
