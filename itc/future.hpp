@@ -79,7 +79,10 @@ public:
 	/// This is the case only for futures that were not default-constructed or
 	/// moved from (i.e. returned by promise::get_future()
 	//-----------------------------------------------------------------------------
-	bool valid() const { return state_ != nullptr; }
+	bool valid() const
+	{
+		return state_ != nullptr;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Checks whether the result is ready.
