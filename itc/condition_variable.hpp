@@ -35,12 +35,10 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait(std::unique_lock<std::mutex>& lock) const
 	{
-		auto before_wait = [&lock]() { lock.unlock(); };
-		auto after_wait = [&lock]() { lock.lock(); };
+		const auto before_wait = [&lock]() { lock.unlock(); };
+		const auto after_wait = [&lock]() { lock.lock(); };
 
 		sync_.wait(before_wait, after_wait);
-
-		lock.unlock();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -54,14 +52,10 @@ public:
 	std::cv_status wait_for(std::unique_lock<std::mutex>& lock,
 							const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
-		auto before_wait = [&lock]() { lock.unlock(); };
-		auto after_wait = [&lock]() { lock.lock(); };
+		const auto before_wait = [&lock]() { lock.unlock(); };
+		const auto after_wait = [&lock]() { lock.lock(); };
 
-		auto res = sync_.wait_for(timeout_duration, before_wait, after_wait);
-
-		lock.unlock();
-
-		return res;
+		return sync_.wait_for(timeout_duration, before_wait, after_wait);
 	}
 
 	//-----------------------------------------------------------------------------
