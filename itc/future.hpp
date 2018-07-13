@@ -2,7 +2,6 @@
 
 #include "detail/semaphore.h"
 #include "thread.h"
-#include "utility.hpp"
 #include <future>
 
 namespace itc

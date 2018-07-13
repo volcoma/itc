@@ -1,4 +1,5 @@
 #pragma once
+#include "detail/capture.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -140,6 +141,7 @@ void process();
 /// Gets the current thread id. Returns invalid id if not registered.
 //-----------------------------------------------------------------------------
 thread::id get_id();
+
 //-----------------------------------------------------------------------------
 /// Check is this thread the main thread
 //-----------------------------------------------------------------------------

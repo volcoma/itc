@@ -1,6 +1,4 @@
-#include "itc/future.hpp"
 #include "itc/thread.h"
-#include "itc/utility.hpp"
 
 #include "async_tests.h"
 #include "condition_variable_tests.h"

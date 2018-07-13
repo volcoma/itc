@@ -1,5 +1,6 @@
 #pragma once
 #include "detail/apply.hpp"
+#include "detail/capture.hpp"
 #include "future.hpp"
 
 namespace itc
