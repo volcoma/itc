@@ -88,13 +88,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Checks whether the result is ready.
+	/// Checks whether the result is ready. If either a value or
+	/// exception was set this will return true.
 	//-----------------------------------------------------------------------------
 	bool is_ready() const
 	{
 		state_check(state_);
 
-		return state_->status == value_status::ready;
+		return state_->status != value_status::not_set;
 	}
 
 	//-----------------------------------------------------------------------------
