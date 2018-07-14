@@ -1,6 +1,6 @@
 #pragma once
-
 #include "detail/semaphore.h"
+
 #include "thread.h"
 #include <future>
 
@@ -12,6 +12,8 @@ template <typename T>
 class future;
 template <typename T>
 class shared_future;
+template <typename T>
+class promise;
 
 namespace detail
 {
@@ -27,29 +29,30 @@ template <typename T>
 struct internal_state
 {
 	semaphore sync;
+
 	std::shared_ptr<T> value;
 	std::exception_ptr exception;
 	std::atomic<value_status> status = {value_status::not_set};
 
 	// These are here so that constructors of both
 	// future and promise can remain noexcept
-	std::once_flag once;
-	std::atomic_flag retrieved_ = ATOMIC_FLAG_INIT;
+	std::atomic_flag once = ATOMIC_FLAG_INIT;
+	std::atomic_flag retrieved = ATOMIC_FLAG_INIT;
 };
 
 template <typename T>
-inline void state_check(const std::shared_ptr<T>& p)
+inline void state_check(const std::shared_ptr<internal_state<T>>& state)
 {
-	if(!p)
+	if(!state)
 	{
 		throw std::future_error(std::future_errc::no_state);
 	}
 }
 
 template <typename T>
-inline void state_invalidate(std::shared_ptr<T>& p)
+inline void state_invalidate(std::shared_ptr<internal_state<T>>& state)
 {
-	p.reset();
+	state.reset();
 }
 
 template <typename T>
@@ -57,6 +60,7 @@ inline bool nothing_is_set(const std::shared_ptr<internal_state<T>>& state)
 {
 	return state->status == value_status::not_set;
 }
+
 template <typename T>
 class basic_promise;
 
@@ -157,7 +161,7 @@ public:
 	}
 
 protected:
-	void check_for_exception() const
+	void rethrow_any_exception() const
 	{
 		state_check(state_);
 
@@ -222,7 +226,7 @@ protected:
 
 	void set_retrieved_flag()
 	{
-		if(state_->retrieved_.test_and_set())
+		if(state_->retrieved.test_and_set())
 		{
 			throw std::future_error(std::future_errc::future_already_retrieved);
 		}
@@ -230,18 +234,12 @@ protected:
 
 	void set_value_and_status(const std::function<void()>& f, value_status status)
 	{
-		state_check(this->state_);
+		state_check(state_);
 
-		bool did_set = false;
-		auto set_impl = [&f, &did_set]() {
-			f();
-			did_set = true;
-		};
-
-		std::call_once(this->state_->once, set_impl);
-		if(did_set)
+		if(!state_->once.test_and_set())
 		{
-			this->set_status(status);
+			f();
+			set_status(status);
 		}
 		else
 		{
@@ -317,7 +315,7 @@ public:
 	{
 		this->wait();
 
-		this->check_for_exception();
+		this->rethrow_any_exception();
 
 		auto value = std::move(this->state_->value);
 
@@ -358,7 +356,7 @@ public:
 	{
 		wait();
 
-		check_for_exception();
+		rethrow_any_exception();
 
 		state_invalidate(state_);
 	}
@@ -412,7 +410,7 @@ public:
 	const T& get() const
 	{
 		this->wait();
-		this->check_for_exception();
+		this->rethrow_any_exception();
 
 		auto value = this->state_->value;
 		return *value;
@@ -458,7 +456,7 @@ public:
 	void get() const
 	{
 		wait();
-		check_for_exception();
+		rethrow_any_exception();
 	}
 };
 
@@ -472,4 +470,5 @@ inline shared_future<void> future<void>::share()
 {
 	return shared_future<void>(std::move(*this));
 }
+
 } // namespace itc
