@@ -15,7 +15,8 @@ void run_tests(int iterations)
 	for(int i = 0; i < iterations; ++i)
 	{
 
-		auto fut = itc::async(th_id, [i]() mutable {
+		std::unique_ptr<int> up;
+		auto fut = itc::async(th_id, [i, u = std::move(up)]() mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
 			std::cout << "setting promise value for " << i << std::endl;
@@ -25,14 +26,17 @@ void run_tests(int iterations)
 			}
 			return 5;
 		});
+
+		auto fut2 = itc::when(fut, th_id, []() { return 5; });
+
 		std::cout << "waiting on future for" << i << std::endl;
-		fut.wait_for(std::chrono::milliseconds(10));
+		fut2.wait_for(std::chrono::milliseconds(10));
 		try
 		{
-			auto val0 = fut.get();
+			auto val0 = fut2.get();
 			(void)val0;
 		}
-		catch(const std::exception& e)
+		catch(const std::future_error& e)
 		{
 			std::cout << e.what() << std::endl;
 		}

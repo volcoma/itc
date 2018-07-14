@@ -7,18 +7,18 @@ namespace itc
 
 namespace detail
 {
-template <class T>
+template <typename T>
 struct is_reference_wrapper : std::false_type
 {
 };
-template <class U>
+template <typename U>
 struct is_reference_wrapper<std::reference_wrapper<U>> : std::true_type
 {
 };
 /*
  * invoke implemented as per the C++17 standard specification.
  */
-template <class B, class T, class D, class... Args>
+template <typename B, typename T, typename D, typename... Args>
 constexpr inline auto
 invoke_impl(T B::*f, D&& d,
 			Args&&... args) noexcept(noexcept((std::forward<D>(d).*f)(std::forward<Args>(args)...))) ->
@@ -29,7 +29,7 @@ invoke_impl(T B::*f, D&& d,
 	return (std::forward<D>(d).*f)(std::forward<Args>(args)...);
 }
 
-template <class B, class T, class R, class... Args>
+template <typename B, typename T, typename R, typename... Args>
 constexpr inline auto
 invoke_impl(T B::*f, R&& r, Args&&... args) noexcept(noexcept((r.get().*f)(std::forward<Args>(args)...))) ->
 	typename std::enable_if<std::is_function<T>::value &&
@@ -39,7 +39,7 @@ invoke_impl(T B::*f, R&& r, Args&&... args) noexcept(noexcept((r.get().*f)(std::
 	return (r.get().*f)(std::forward<Args>(args)...);
 }
 
-template <class B, class T, class P, class... Args>
+template <typename B, typename T, typename P, typename... Args>
 constexpr inline auto
 invoke_impl(T B::*f, P&& p,
 			Args&&... args) noexcept(noexcept(((*std::forward<P>(p)).*f)(std::forward<Args>(args)...))) ->
@@ -51,7 +51,7 @@ invoke_impl(T B::*f, P&& p,
 	return ((*std::forward<P>(p)).*f)(std::forward<Args>(args)...);
 }
 
-template <class B, class T, class D>
+template <typename B, typename T, typename D>
 constexpr inline auto invoke_impl(T B::*m, D&& d) noexcept(noexcept(std::forward<D>(d).*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								std::is_base_of<B, typename std::decay<D>::type>::value,
@@ -60,7 +60,7 @@ constexpr inline auto invoke_impl(T B::*m, D&& d) noexcept(noexcept(std::forward
 	return std::forward<D>(d).*m;
 }
 
-template <class B, class T, class R>
+template <typename B, typename T, typename R>
 constexpr inline auto invoke_impl(T B::*m, R&& r) noexcept(noexcept(r.get().*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								is_reference_wrapper<typename std::decay<R>::type>::value,
@@ -69,7 +69,7 @@ constexpr inline auto invoke_impl(T B::*m, R&& r) noexcept(noexcept(r.get().*m))
 	return r.get().*m;
 }
 
-template <class B, class T, class P>
+template <typename B, typename T, typename P>
 constexpr inline auto invoke_impl(T B::*m, P&& p) noexcept(noexcept((*std::forward<P>(p)).*m)) ->
 	typename std::enable_if<!std::is_function<T>::value &&
 								!is_reference_wrapper<typename std::decay<P>::type>::value &&
@@ -79,7 +79,7 @@ constexpr inline auto invoke_impl(T B::*m, P&& p) noexcept(noexcept((*std::forwa
 	return (*std::forward<P>(p)).*m;
 }
 
-template <class Callable, class... Args>
+template <typename Callable, typename... Args>
 constexpr inline auto
 invoke_impl(Callable&& c,
 			Args&&... args) noexcept(noexcept(std::forward<Callable>(c)(std::forward<Args>(args)...)))
@@ -90,7 +90,7 @@ invoke_impl(Callable&& c,
 
 } // namespace detail
 
-template <class F, class... Args>
+template <typename F, typename... Args>
 constexpr inline auto invoke(F&& f, Args&&... args) noexcept(
 	noexcept(detail::invoke_impl(std::forward<F>(f), std::forward<Args>(args)...)))
 	-> decltype(detail::invoke_impl(std::forward<F>(f), std::forward<Args>(args)...))
@@ -112,9 +112,9 @@ struct invoke_result<decltype(void(invoke(std::declval<F>(), std::declval<Args>(
 };
 } // namespace detail
 
-template <class>
+template <typename>
 struct result_of;
-template <class F, class... ArgTypes>
+template <typename F, typename... ArgTypes>
 struct result_of<F(ArgTypes...)> : detail::invoke_result<void, F, ArgTypes...>
 {
 };
@@ -122,7 +122,7 @@ struct result_of<F(ArgTypes...)> : detail::invoke_result<void, F, ArgTypes...>
 template <typename F, typename... Args>
 using result_of_t = typename result_of<F(Args...)>::type;
 
-template <class F, class... ArgTypes>
+template <typename F, typename... ArgTypes>
 struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
 {
 };

@@ -4,7 +4,7 @@
 
 namespace itc
 {
-template <class T>
+template <typename T>
 class move_on_copy_t
 {
 public:
