@@ -4,6 +4,10 @@
 #include <utility>
 namespace itc
 {
+template <typename... Args>
+inline void ignore(Args&&...)
+{
+}
 
 namespace detail
 {

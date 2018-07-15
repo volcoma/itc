@@ -1,6 +1,7 @@
 #pragma once
 #include "detail/apply.hpp"
 #include "detail/capture.hpp"
+#include "detail/for_each.hpp"
 #include "future.hpp"
 #include <algorithm>
 #include <type_traits>
@@ -10,6 +11,7 @@ namespace itc
 
 namespace detail
 {
+
 template <typename T, typename F, typename Tuple>
 std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
 {
@@ -81,15 +83,31 @@ void launch(thread::id id, std::launch policy, task func)
 	}
 }
 
-thread::id get_available_id()
+thread::id get_available_thread()
 {
-	// create at thread to wait on the futures
-	// TODO maybe get it from a pool
+	// Create a new thread to wait on the futures
+	// We do not use a thread pool because
+	// thread_local initialization must happen
+	// as if a new thread is started.
 	auto thread = run_thread("future waiter");
 	auto id = thread->get_id();
-	// detach it
+	// detach it and rely that
+	// either the call will notify it
+	// or the system shutdown will clean it up.
 	thread->detach();
 	return id;
+}
+
+template <typename T, std::enable_if_t<std::is_copy_constructible<T>::value>* = nullptr>
+decltype(auto) move_or_copy(T& v)
+{
+	return std::forward<T>(v);
+}
+
+template <typename T, std::enable_if_t<!std::is_copy_constructible<T>::value>* = nullptr>
+decltype(auto) move_or_copy(T& v)
+{
+	return std::move(v);
 }
 
 } // namespace detail
@@ -115,18 +133,11 @@ auto async(thread::id id, F&& f, Args&&... args)
 				 std::forward<Args>(args)...);
 }
 
-template <typename F, typename... Args>
-auto async(F&& f, Args&&... args) -> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
-{
-	auto id = detail::get_available_id();
-	return async(id, std::launch::deferred | std::launch::async, std::forward<F>(f),
-				 std::forward<Args>(args)...);
-}
 template <typename T, typename F, typename... Args>
-auto when(const shared_future<T>& parent_future, thread::id id, std::launch policy, F&& f, Args&&... args)
+auto then(const shared_future<T>& parent_future, thread::id id, std::launch policy, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
 {
-	if(parent_future.is_ready())
+	if(parent_future.is_ready() && !parent_future.has_error())
 	{
 		return async(id, policy, std::forward<F>(f), std::forward<Args>(args)...);
 	}
@@ -135,18 +146,20 @@ auto when(const shared_future<T>& parent_future, thread::id id, std::launch poli
 	auto& future = package.first;
 	auto& task = package.second;
 
-	// this call will create a thread so that the future can wait there.
-	async(std::launch::async, [parent_future, id, policy, task = std::move(task)] {
+	// spawn a detached thread for waiting
+	auto waiter_id = detail::get_available_thread();
+	async(waiter_id, std::launch::async, [parent_future, id, policy, task = std::move(task)] {
 
 		parent_future.wait();
 
 		// Launch only if ready.
-		if(parent_future.is_ready())
+		if(parent_future.is_ready() && !parent_future.has_error())
 		{
 			detail::launch(id, policy, std::move(task));
 		}
 
-		// We are done.
+		// We are done. Notify to destroy the
+		// executing detached thread.
 		notify_for_exit(this_thread::get_id());
 	});
 
@@ -154,26 +167,93 @@ auto when(const shared_future<T>& parent_future, thread::id id, std::launch poli
 }
 
 template <typename T, typename F, typename... Args>
-auto when(future<T>& fut, thread::id id, std::launch policy, F&& f, Args&&... args)
+auto then(const shared_future<T>& fut, thread::id id, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
 {
-	return when(fut.share(), id, policy, std::forward<F>(f), std::forward<Args>(args)...);
-}
-
-template <typename T, typename F, typename... Args>
-auto when(const shared_future<T>& fut, thread::id id, F&& f, Args&&... args)
-	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
-{
-	return when(fut, id, std::launch::deferred | std::launch::async, std::forward<F>(f),
+	return then(fut, id, std::launch::deferred | std::launch::async, std::forward<F>(f),
 				std::forward<Args>(args)...);
 }
 
 template <typename T, typename F, typename... Args>
-auto when(future<T>& fut, thread::id id, F&& f, Args&&... args)
+auto then(future<T>& fut, thread::id id, std::launch policy, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
 {
-	return when(fut, id, std::launch::deferred | std::launch::async, std::forward<F>(f),
+	return then(fut.share(), id, policy, std::forward<F>(f), std::forward<Args>(args)...);
+}
+template <typename T, typename F, typename... Args>
+auto then(future<T>&& fut, thread::id id, std::launch policy, F&& f, Args&&... args)
+	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
+{
+	return then(fut.share(), id, policy, std::forward<F>(f), std::forward<Args>(args)...);
+}
+
+template <typename T, typename F, typename... Args>
+auto then(future<T>& fut, thread::id id, F&& f, Args&&... args)
+	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
+{
+	return then(fut, id, std::launch::deferred | std::launch::async, std::forward<F>(f),
 				std::forward<Args>(args)...);
 }
 
+template <typename T, typename F, typename... Args>
+auto then(future<T>&& fut, thread::id id, F&& f, Args&&... args)
+	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
+{
+	return then(fut, id, std::launch::deferred | std::launch::async, std::forward<F>(f),
+				std::forward<Args>(args)...);
+}
+
+// when_all with variadic arguments
+inline future<std::tuple<>> when_all()
+{
+	return make_ready_future(std::tuple<>());
+}
+
+template <typename... Args>
+future<std::tuple<std::decay_t<Args>...>> when_all(Args&&... args)
+{
+	auto tuple_args = std::make_tuple<std::decay_t<Args>...>(detail::move_or_copy(args)...);
+
+	// spawn a detached thread for waiting
+	auto waiter_id = detail::get_available_thread();
+	return async(waiter_id, [t = std::move(tuple_args)]() mutable {
+
+		for_each(t, [](const auto& waiter) { waiter.wait(); });
+
+		// We are done. Notify to destroy the
+		// executing detached thread.
+		notify_for_exit(this_thread::get_id());
+
+		return std::move(t);
+	});
+}
+template <class InputIt>
+auto when_all(InputIt first, InputIt last)
+	-> future<std::vector<typename std::iterator_traits<InputIt>::value_type>>
+{
+	using container_type = std::vector<typename std::iterator_traits<InputIt>::value_type>;
+	container_type args;
+	args.reserve(std::distance(first, last));
+	while(first != last)
+	{
+		args.emplace_back(detail::move_or_copy(*first));
+		first = std::next(first);
+	}
+
+	// spawn a detached thread for waiting
+	auto waiter_id = detail::get_available_thread();
+	return async(waiter_id, [t = std::move(args)]() mutable {
+
+		for(const auto& waiter : t)
+		{
+			waiter.wait();
+		}
+
+		// We are done. Notify to destroy the
+		// executing detached thread.
+		notify_for_exit(this_thread::get_id());
+
+		return std::move(t);
+	});
+}
 } // namespace itc

@@ -472,4 +472,18 @@ inline shared_future<void> future<void>::share()
 	return shared_future<void>(std::move(*this));
 }
 
+template<typename T>
+inline future<T> make_ready_future(T&& value)
+{
+    promise<T> prom;
+    prom.set_value(std::forward<T>(value));
+    return prom.get_future();
+}
+
+inline future<void> make_ready_future()
+{
+    promise<void> prom;
+    prom.set_value();
+    return prom.get_future();
+}
 } // namespace itc
