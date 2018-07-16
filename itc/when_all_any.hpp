@@ -56,6 +56,10 @@ auto when_all(InputIt first, InputIt last)
 {
 	using container_type = std::vector<typename std::iterator_traits<InputIt>::value_type>;
 	container_type args;
+	if(first == last)
+	{
+		return args;
+	}
 	args.reserve(std::distance(first, last));
 	while(first != last)
 	{

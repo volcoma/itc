@@ -17,37 +17,34 @@ class shared_future;
 template <typename T>
 class promise;
 
+//-----------------------------------------------------------------------------
+/// The template function async runs the function f a
+/// synchronously (potentially in a separate thread )
+/// and returns a std::future that will eventually hold
+/// the result of that function call.
+//-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+//-----------------------------------------------------------------------------
+/// The template function async runs the function f a
+/// synchronously (potentially in a separate thread )
+/// and returns a std::future that will eventually hold
+/// the result of that function call.
+//-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+
 namespace detail
 {
-template <typename F, typename... Args>
-auto package_task(F&& func, Args&&... args)
-	-> std::pair<future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>, task>;
 template <typename T, typename F, typename... Args>
 auto then_impl(const shared_future<T>& parent_future, thread::id id, std::launch policy, F&& f,
 			   Args&&... args) -> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
-inline thread::id get_available_thread()
-{
-	// Create a new thread to wait on the futures
-	// We do not use a thread pool because
-	// thread_local initialization must happen
-	// as if a new thread is started.
-	auto thread = run_thread("future waiter");
-	auto id = thread->get_id();
-	// detach it and rely that
-	// either the call will notify it
-	// or the system shutdown will clean it up.
-	thread->detach();
-	return id;
-}
+
 enum class value_status : unsigned
 {
 	not_set,
@@ -64,8 +61,8 @@ struct internal_state
 	std::exception_ptr exception;
 	std::atomic<value_status> status = {value_status::not_set};
 
-	// These are here so that constructors of both
-	// future and promise can remain noexcept
+	/// These are here so that constructors of both
+	/// future and promise can remain noexcept
 	std::atomic_flag once = ATOMIC_FLAG_INIT;
 	std::atomic_flag retrieved = ATOMIC_FLAG_INIT;
 };
@@ -363,10 +360,20 @@ public:
 	//-----------------------------------------------------------------------------
 	shared_future<T> share();
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	/// After this function returns, valid() is false.
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, std::launch policy, F&& f, Args&&... args)
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	/// After this function returns, valid() is false.
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, F&& f, Args&&... args)
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
@@ -408,10 +415,20 @@ public:
 	//-----------------------------------------------------------------------------
 	shared_future<void> share();
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	/// After this function returns, valid() is false.
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, std::launch policy, F&& f, Args&&... args)
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	/// After this function returns, valid() is false.
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, F&& f, Args&&... args)
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
@@ -463,10 +480,18 @@ public:
 		return *value;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, std::launch policy, F&& f, Args&&... args) const
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, F&& f, Args&&... args) const
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
@@ -514,15 +539,49 @@ public:
 		rethrow_any_exception();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, std::launch policy, F&& f, Args&&... args) const
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
+	//-----------------------------------------------------------------------------
+	/// Attach the continuation func to *this. The behavior is undefined
+	/// if *this has no associated shared state (i.e., valid() == false).
+	//-----------------------------------------------------------------------------
 	template <typename F, typename... Args>
 	auto then(thread::id id, F&& f, Args&&... args) const
 		-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 };
 
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given value
+//-----------------------------------------------------------------------------
+template <typename T>
+inline future<T> make_ready_future(T&& value)
+{
+	promise<T> prom;
+	prom.set_value(std::forward<T>(value));
+	return prom.get_future();
+}
+
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given value
+//-----------------------------------------------------------------------------
+inline future<void> make_ready_future()
+{
+	promise<void> prom;
+	prom.set_value();
+	return prom.get_future();
+}
+
+//-----------------------------------------------------------------------------
+/// IMPLEMENTATIONS
+//-----------------------------------------------------------------------------
 template <typename T>
 inline shared_future<T> future<T>::share()
 {
@@ -533,22 +592,6 @@ inline shared_future<void> future<void>::share()
 {
 	return shared_future<void>(std::move(*this));
 }
-
-template <typename T>
-inline future<T> make_ready_future(T&& value)
-{
-	promise<T> prom;
-	prom.set_value(std::forward<T>(value));
-	return prom.get_future();
-}
-
-inline future<void> make_ready_future()
-{
-	promise<void> prom;
-	prom.set_value();
-	return prom.get_future();
-}
-
 namespace detail
 {
 template <typename T, typename F, typename Tuple>
@@ -622,6 +665,21 @@ inline void launch(thread::id id, std::launch policy, task func)
 	}
 }
 
+inline thread::id get_available_thread()
+{
+	/// Create a new thread to wait on the futures
+	/// We do not use a thread pool because
+	/// thread_local initialization must happen
+	/// as if a new thread is started.
+	auto thread = run_thread("future waiter");
+	auto id = thread->get_id();
+	/// detach it and rely that
+	/// either the call will notify it
+	/// or the system shutdown will clean it up.
+	thread->detach();
+	return id;
+}
+
 template <typename T, typename F, typename... Args>
 auto then_impl(const shared_future<T>& parent_future, thread::id id, std::launch policy, F&& f,
 			   Args&&... args) -> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
@@ -646,10 +704,10 @@ auto then_impl(const shared_future<T>& parent_future, thread::id id, std::launch
 		{
 			detail::launch(id, policy, std::move(task));
 		}
-        else
-        {
-            //TODO handle exception propagation
-        }
+		else
+		{
+			// TODO handle exception propagation
+		}
 
 		// We are done. Notify to destroy the
 		// executing detached thread.
