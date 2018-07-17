@@ -1,7 +1,7 @@
 #pragma once
-#include "detail/apply.hpp"
-#include "detail/capture.hpp"
-#include "detail/for_each.hpp"
+#include "detail/utility/apply.hpp"
+#include "detail/utility/capture.hpp"
+#include "detail/utility/for_each.hpp"
 #include "future.hpp"
 #include <algorithm>
 #include <type_traits>
@@ -39,15 +39,16 @@ future<std::tuple<std::decay_t<Args>...>> when_all(Args&&... args)
 
 	// spawn a detached thread for waiting
 	auto waiter_id = detail::get_available_thread();
-	return async(waiter_id, [t = std::move(tuple_args)]() mutable {
+	auto args_wrap = capture(tuple_args);
+	return async(waiter_id, [args_wrap]() mutable {
 
-		for_each(t, [](const auto& waiter) { waiter.wait(); });
+		for_each(args_wrap.get(), [](const auto& waiter) { waiter.wait(); });
 
 		// We are done. Notify to destroy the
 		// executing detached thread.
 		notify_for_exit(this_thread::get_id());
 
-		return std::move(t);
+		return std::move(args_wrap.get());
 	});
 }
 template <class InputIt>
@@ -69,9 +70,10 @@ auto when_all(InputIt first, InputIt last)
 
 	// spawn a detached thread for waiting
 	auto waiter_id = detail::get_available_thread();
-	return async(waiter_id, [t = std::move(args)]() mutable {
+	auto args_wrap = capture(args);
+	return async(waiter_id, [args_wrap]() mutable {
 
-		for(const auto& waiter : t)
+		for(const auto& waiter : args_wrap.get())
 		{
 			waiter.wait();
 		}
@@ -80,7 +82,7 @@ auto when_all(InputIt first, InputIt last)
 		// executing detached thread.
 		notify_for_exit(this_thread::get_id());
 
-		return std::move(t);
+		return std::move(args_wrap.get());
 	});
 }
 } // namespace itc

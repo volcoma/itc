@@ -43,8 +43,12 @@ void run_tests(int iterations)
 		// itc::when_all(std::begin(futs), std::end(futs)).wait();
 		auto this_id = itc::this_thread::get_id();
 		auto chain_f = itc::when_all(fut0, fut1.share())
-						   .then(this_id, []() { std::cout << "then1" << std::endl; })
-						   .then(th_id, []() { std::cout << "then2" << std::endl; })
+						   .then(th_id,
+								 []() {
+									 throw std::runtime_error("then1 ex");
+									 std::cout << "then1" << std::endl;
+								 })
+						   .then(this_id, []() { std::cout << "then2" << std::endl; })
 						   .then(this_id, []() { std::cout << "then3" << std::endl; });
 
 		std::cout << "waiting on future for" << i << std::endl;

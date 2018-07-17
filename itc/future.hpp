@@ -1,8 +1,8 @@
 #pragma once
-#include "detail/apply.hpp"
-#include "detail/capture.hpp"
-#include "detail/for_each.hpp"
 #include "detail/semaphore.h"
+#include "detail/utility/apply.hpp"
+#include "detail/utility/capture.hpp"
+#include "detail/utility/for_each.hpp"
 #include "thread.h"
 #include <future>
 
@@ -37,13 +37,11 @@ template <typename F, typename... Args>
 auto async(thread::id id, F&& f, Args&&... args)
 	-> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
 
-
 namespace detail
 {
 template <typename T, typename F, typename... Args>
 auto then_impl(const shared_future<T>& parent_future, thread::id id, std::launch policy, F&& f,
 			   Args&&... args) -> future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>;
-
 
 enum class value_status : unsigned
 {
@@ -188,7 +186,6 @@ public:
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 	}
 
-protected:
 	void rethrow_any_exception() const
 	{
 		state_check(state_);
@@ -201,6 +198,7 @@ protected:
 		}
 	}
 
+protected:
 	/// The shared state
 	std::shared_ptr<internal_state<T>> state_;
 };
@@ -595,7 +593,7 @@ inline shared_future<void> future<void>::share()
 namespace detail
 {
 template <typename T, typename F, typename Tuple>
-std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
+std::enable_if_t<!std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple&& args)
 {
 	try
 	{
@@ -614,10 +612,58 @@ std::enable_if_t<!std::is_same<T, void>::value> call_and_set_promise_value(promi
 	}
 }
 template <typename T, typename F, typename Tuple>
-std::enable_if_t<std::is_same<T, void>::value> call_and_set_promise_value(promise<T>& p, F&& f, Tuple&& args)
+std::enable_if_t<std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple&& args)
 {
 	try
 	{
+		itc::apply(std::forward<F>(f), std::forward<Tuple>(args));
+		p.set_value();
+	}
+	catch(...)
+	{
+		try
+		{
+			// store anything thrown in the promise
+			p.set_exception(std::current_exception());
+		}
+		catch(...)
+		{
+		} // set_exception() may throw too
+	}
+}
+
+template <typename U, typename T, typename F, typename Tuple>
+std::enable_if_t<!std::is_same<T, void>::value> call_continuation(const shared_future<U>& parent_future,
+																  promise<T>& p, F&& f, Tuple&& args)
+{
+	try
+	{
+		// call parent get in order to
+		// propagate any exception that it holds
+		parent_future.rethrow_any_exception();
+		p.set_value(itc::apply(std::forward<F>(f), std::forward<Tuple>(args)));
+	}
+	catch(...)
+	{
+		try
+		{
+			// store anything thrown in the promise
+			p.set_exception(std::current_exception());
+		}
+		catch(...)
+		{
+		} // set_exception() may throw too
+	}
+}
+template <typename U, typename T, typename F, typename Tuple>
+std::enable_if_t<std::is_same<T, void>::value> call_continuation(const shared_future<U>& parent_future,
+																 promise<T>& p, F&& f, Tuple&& args)
+{
+	try
+	{
+		// call parent get in order to
+		// propagate any exception that it holds
+		parent_future.rethrow_any_exception();
 		itc::apply(std::forward<F>(f), std::forward<Tuple>(args));
 		p.set_value();
 	}
@@ -648,8 +694,25 @@ auto package_task(F&& func, Args&&... args)
 	auto t = capture(tuple_args);
 	auto f = capture(func);
 
-	return std::make_pair(std::move(fut), [f, t, p]() mutable {
-		detail::call_and_set_promise_value(p.get(), f.get(), t.get());
+	return std::make_pair(std::move(fut), [f, t, p]() mutable { detail::call(p.get(), f.get(), t.get()); });
+}
+
+template <typename T, typename F, typename... Args>
+auto package_continuation_task(const shared_future<T>& parent_future, F&& func, Args&&... args)
+	-> std::pair<future<invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>, task>
+{
+	using return_type = invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>;
+
+	auto prom = promise<return_type>();
+	auto fut = prom.get_future();
+	auto tuple_args = std::make_tuple<std::decay_t<Args>...>(std::forward<Args>(args)...);
+
+	auto p = capture(prom);
+	auto t = capture(tuple_args);
+	auto f = capture(func);
+
+	return std::make_pair(std::move(fut), [parent_future, f, t, p]() mutable {
+		detail::call_continuation(parent_future, p.get(), f.get(), t.get());
 	});
 }
 
@@ -689,24 +752,22 @@ auto then_impl(const shared_future<T>& parent_future, thread::id id, std::launch
 		return async(id, policy, std::forward<F>(f), std::forward<Args>(args)...);
 	}
 
-	auto package = detail::package_task(std::forward<F>(f), std::forward<Args>(args)...);
+	auto package =
+		detail::package_continuation_task(parent_future, std::forward<F>(f), std::forward<Args>(args)...);
 	auto& future = package.first;
 	auto& task = package.second;
 
 	// spawn a detached thread for waiting
 	auto waiter_id = detail::get_available_thread();
-	detail::launch(waiter_id, std::launch::async, [parent_future, id, policy, task = std::move(task)] {
+	auto task_wrap = capture(task);
+	detail::launch(waiter_id, std::launch::async, [parent_future, id, policy, task_wrap] {
 
 		parent_future.wait();
 
 		// Launch only if ready.
-		if(parent_future.is_ready() && !parent_future.has_error())
+		if(parent_future.is_ready())
 		{
-			detail::launch(id, policy, std::move(task));
-		}
-		else
-		{
-			// TODO handle exception propagation
+			detail::launch(id, policy, std::move(task_wrap.get()));
 		}
 
 		// We are done. Notify to destroy the

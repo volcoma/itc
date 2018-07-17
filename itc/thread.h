@@ -1,5 +1,5 @@
 #pragma once
-#include "detail/capture.hpp"
+#include "detail/utility/capture.hpp"
 
 #include <chrono>
 #include <condition_variable>
