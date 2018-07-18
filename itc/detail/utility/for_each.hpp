@@ -4,6 +4,8 @@
 
 namespace itc
 {
+namespace utility
+{
 namespace detail
 {
 
@@ -22,5 +24,6 @@ void for_each(Tuple&& tuple, F&& f)
 {
 	detail::for_each_impl(std::forward<Tuple>(tuple), std::forward<F>(f),
 						  std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+}
 }
 }

@@ -3,6 +3,8 @@
 #include <tuple>
 namespace itc
 {
+namespace utility
+{
 namespace detail
 {
 
@@ -13,7 +15,7 @@ template <typename F, typename T, std::size_t... I>
 constexpr inline decltype(auto) apply(F&& f, T&& t, std::index_sequence<I...>)
 {
 	ignore(t);
-	return itc::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);
+	return itc::utility::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);
 }
 
 } // namespace detail
@@ -24,5 +26,5 @@ constexpr inline decltype(auto) apply(F&& f, T&& t)
 	return detail::apply(std::forward<F>(f), std::forward<T>(t),
 						 std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>{});
 }
-
+}
 } // namespace itc

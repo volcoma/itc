@@ -42,7 +42,7 @@ future<std::tuple<std::decay_t<Args>...>> when_all(Args&&... args)
 	auto args_wrap = capture(tuple_args);
 	return async(waiter_id, [args_wrap]() mutable {
 
-		for_each(args_wrap.get(), [](const auto& waiter) { waiter.wait(); });
+		utility::for_each(args_wrap.get(), [](const auto& waiter) { waiter.wait(); });
 
 		// We are done. Notify to destroy the
 		// executing detached thread.
@@ -85,4 +85,5 @@ auto when_all(InputIt first, InputIt last)
 		return std::move(args_wrap.get());
 	});
 }
+
 } // namespace itc

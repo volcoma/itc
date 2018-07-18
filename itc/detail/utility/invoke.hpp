@@ -2,13 +2,15 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+
 namespace itc
 {
 template <typename... Args>
 inline void ignore(Args&&...)
 {
 }
-
+namespace utility
+{
 namespace detail
 {
 template <typename T>
@@ -133,4 +135,5 @@ struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
 
 template <typename F, typename... Args>
 using invoke_result_t = typename invoke_result<F, Args...>::type;
+}
 } // namespace itc
