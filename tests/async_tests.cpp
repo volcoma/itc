@@ -6,6 +6,22 @@
 #include <iostream>
 namespace async_tests
 {
+struct S
+{
+    S()
+    {
+        puts("S()");
+    }
+    S(const S&)
+    {
+        puts("S(const S&)");
+    }
+    S(S&&) noexcept
+    {
+        puts("S(S&&)");
+    }
+};
+
 
 void run_tests(int iterations)
 {
@@ -16,7 +32,7 @@ void run_tests(int iterations)
 	{
 
 		std::unique_ptr<int> up;
-		auto fut0 = itc::async(th_id, [i, u = std::move(up)]() mutable {
+		auto fut0 = itc::async(th_id, [i, u = std::move(up)](const S& str, int b) mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
 			std::cout << "setting promise value for " << i << std::endl;
@@ -25,7 +41,7 @@ void run_tests(int iterations)
 				throw std::runtime_error("testing thrown exception");
 			}
 			return 5;
-		});
+        }, S{}, 12);
 		auto fut1 = itc::async(th_id, [i, u = std::move(up)]() mutable {
 			std::cout << "start working" << std::endl;
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -45,7 +61,8 @@ void run_tests(int iterations)
 		auto chain_f = itc::when_all(fut0, fut1.share())
 						   .then(th_id,
 								 [](auto /*parent*/) {
-									 // throw std::runtime_error("then1 ex");
+
+									 //throw std::runtime_error("then1 ex");
 									 std::cout << "then1" << std::endl;
 								 })
 						   .then(this_id, [](auto /*parent*/) { std::cout << "then2" << std::endl; })
