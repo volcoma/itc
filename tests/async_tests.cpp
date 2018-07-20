@@ -164,6 +164,7 @@ void run_tests(int iterations)
 
                 // Use an applicative pattern. Attach a continuation depending
                 // on multiple futures
+
                 itc::when_all(chain0, chain1).then(this_th_id, [](auto parent)
                 {
                     auto chains = parent.get();
@@ -175,6 +176,19 @@ void run_tests(int iterations)
                     sout() << "chain 1 result = " << chain1.get() << "\n";
 
                 });
+
+//                itc::future<int> futures[] = { std::move(chain0), std::move(chain1) };
+//                itc::when_all(std::begin(futures), std::end(futures)).then(this_th_id, [](auto parent)
+//                {
+//                    auto chains = parent.get();
+
+//                    auto chain0 = std::move(chains[0]);
+//                    auto chain1 = std::move(chains[1]);
+
+//                    sout() << "chain 0 result = " << chain0.get() << "\n";
+//                    sout() << "chain 1 result = " << chain1.get() << "\n";
+
+//                });
 
                 // Wait for the rest of the chains
                 try
