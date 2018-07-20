@@ -1,7 +1,7 @@
 #pragma once
-#include "../condition_variable.hpp"
+#include "condition_variable.hpp"
+#include <forward_list>
 #include <future>
-
 namespace itc
 {
 
@@ -18,9 +18,11 @@ enum class value_status : unsigned
 template <typename T>
 struct future_shared_state
 {
+	using callback_container = std::forward_list<task>;
+
 	condition_variable cv;
 	mutable std::mutex guard;
-	task callback;
+	callback_container callbacks;
 
 	std::shared_ptr<T> value;
 	std::exception_ptr exception;
@@ -79,32 +81,36 @@ struct future_shared_state
 
 	void set_ready(std::unique_lock<std::mutex>& lock, value_status s)
 	{
-		task continuation;
+		callback_container continuations;
 		{
 			status = s;
-			callback.swap(continuation);
+			continuations = std::move(callbacks);
+			callbacks.clear();
 			cv.notify_all();
 		}
 
 		lock.unlock();
-		if(continuation)
+		for(const auto& continuation : continuations)
 		{
-			continuation();
+			if(continuation)
+			{
+				continuation();
+			}
 		}
 	}
 
 	void set_continuation(task continuation)
 	{
-		bool just_run_it = false;
 		{
 			std::lock_guard<std::mutex> lock(guard);
-			just_run_it = ready();
-			if(!just_run_it)
+			if(!ready())
 			{
-				callback.swap(continuation);
+				callbacks.emplace_front(std::move(continuation));
+				return;
 			}
 		}
-		if(just_run_it)
+
+		if(continuation)
 		{
 			continuation();
 		}
@@ -173,7 +179,7 @@ struct future_shared_state
 };
 
 template <typename T>
-inline void expect_state(const std::shared_ptr<future_shared_state<T>>& state)
+inline void check_state(const std::shared_ptr<future_shared_state<T>>& state)
 {
 	if(!state)
 	{

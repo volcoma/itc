@@ -1,7 +1,7 @@
 #pragma once
-#include "detail/future_shared_state.hpp"
 #include "detail/utility/capture.hpp"
 #include "detail/utility/invoke.hpp"
+#include "future_shared_state.hpp"
 #include "thread.h"
 #include <future>
 
@@ -40,6 +40,7 @@ auto async(thread::id id, std::launch policy, F&& f, Args&&... args)
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, F&& f, Args&&... args) -> future<callable_ret_type<F, Args&&...>>;
+
 namespace detail
 {
 
@@ -75,7 +76,7 @@ public:
 	//-----------------------------------------------------------------------------
 	bool is_ready() const
 	{
-		expect_state(state_);
+		check_state(state_);
 
 		return state_->ready();
 	}
@@ -85,7 +86,7 @@ public:
 	//-----------------------------------------------------------------------------
 	bool has_error() const
 	{
-		expect_state(state_);
+		check_state(state_);
 
 		return state_->has_error();
 	}
@@ -95,7 +96,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void wait() const
 	{
-		expect_state(state_);
+		check_state(state_);
 
 		return state_->wait();
 	}
@@ -111,7 +112,7 @@ public:
 	template <typename Rep, typename Per>
 	std::future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
 	{
-		expect_state(state_);
+		check_state(state_);
 
 		return state_->wait_for(timeout_duration);
 	}
@@ -148,15 +149,28 @@ public:
 	{
 		if(state_ && !state_->ready())
 		{
-			auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
-			set_exception(exception);
+			abandon();
 		}
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Atomically stores the exception pointer p into the shared state and makes
+	/// the state ready. An exception is thrown if there is no shared state or the
+	/// shared state already stores a value or exception.
+	//-----------------------------------------------------------------------------
 	void set_exception(std::exception_ptr p)
 	{
-		expect_state(state_);
+		check_state(state_);
 		state_->set_exception(std::move(p));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Abandons the associated future.
+	//-----------------------------------------------------------------------------
+	void abandon()
+	{
+		auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
+		set_exception(exception);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -174,7 +188,7 @@ public:
 protected:
 	void check_retrieved_flag()
 	{
-		expect_state(state_);
+		check_state(state_);
 
 		if(state_->retrieved.test_and_set())
 		{
@@ -196,7 +210,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value(T value)
 	{
-		expect_state(this->state_);
+		check_state(this->state_);
 		this->state_->set_value(std::move(value));
 	}
 };
@@ -209,7 +223,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void set_value()
 	{
-		expect_state(this->state_);
+		check_state(this->state_);
 		this->state_->set_value();
 	}
 };
@@ -258,6 +272,7 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>;
+
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
@@ -311,6 +326,7 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>;
+
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
@@ -370,6 +386,7 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
+
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
@@ -442,7 +459,7 @@ public:
 /// and holds the given value
 //-----------------------------------------------------------------------------
 template <typename T>
-inline future<T> make_ready_future(T&& value)
+future<T> make_ready_future(T&& value)
 {
 	promise<T> prom;
 	prom.set_value(std::forward<T>(value));
@@ -461,10 +478,34 @@ inline future<void> make_ready_future()
 }
 
 //-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given exception
+//-----------------------------------------------------------------------------
+template <class T>
+future<T> make_exceptional_future(std::exception_ptr ex)
+{
+	promise<T> p;
+	p.set_exception(ex);
+	return p.get_future();
+}
+
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given exception
+//-----------------------------------------------------------------------------
+template <class T, class E>
+future<T> make_exceptional_future(E ex)
+{
+	promise<T> p;
+	p.set_exception(std::make_exception_ptr(ex));
+	return p.get_future();
+}
+
+//-----------------------------------------------------------------------------
 /// IMPLEMENTATIONS
 //-----------------------------------------------------------------------------
 template <typename T>
-inline shared_future<T> future<T>::share()
+shared_future<T> future<T>::share()
 {
 	return shared_future<T>(std::move(*this));
 }
@@ -550,9 +591,9 @@ auto async(thread::id id, F&& f, Args&&... args) -> future<callable_ret_type<F, 
 
 template <typename T>
 template <typename F>
-inline auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
+auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
 {
-	detail::expect_state(this->state_);
+	detail::check_state(this->state_);
 
 	auto state = std::move(this->state_);
 	auto&& package = detail::package_task([f = capture(f), state]() mutable {
@@ -570,19 +611,17 @@ inline auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<
 
 template <typename T>
 template <typename F>
-inline auto future<T>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<T>>>
-
+auto future<T>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<T>>>
 {
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
 
 template <typename T>
 template <typename F>
-inline auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
+auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<T>>>
-
 {
-	detail::expect_state(this->state_);
+	detail::check_state(this->state_);
 
 	auto state = this->state_;
 	auto&& package = detail::package_task([id, policy, f = capture(f), state]() mutable {
@@ -600,16 +639,15 @@ inline auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) con
 
 template <typename T>
 template <typename F>
-inline auto shared_future<T>::then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<T>>>
+auto shared_future<T>::then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<T>>>
 {
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
 
 template <typename F>
-inline auto future<void>::then(thread::id id, std::launch policy, F&& f)
-	-> future<then_ret_type<F, future<void>>>
+auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
 {
-	detail::expect_state(this->state_);
+	detail::check_state(this->state_);
 
 	auto state = std::move(this->state_);
 	auto&& package = detail::package_task([id, policy, f = capture(f), state]() mutable {
@@ -626,16 +664,16 @@ inline auto future<void>::then(thread::id id, std::launch policy, F&& f)
 }
 
 template <typename F>
-inline auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<void>>>
+auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<void>>>
 {
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
 
 template <typename F>
-inline auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
+auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<void>>>
 {
-	detail::expect_state(this->state_);
+	detail::check_state(this->state_);
 
 	auto state = this->state_;
 	auto&& package = detail::package_task([id, policy, f = capture(f), state]() mutable {
@@ -652,8 +690,7 @@ inline auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) 
 }
 
 template <typename F>
-inline auto shared_future<void>::then(thread::id id, F&& f) const
-	-> future<then_ret_type<F, shared_future<void>>>
+auto shared_future<void>::then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<void>>>
 {
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
 }

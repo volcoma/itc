@@ -1,8 +1,8 @@
 #include "fututre_promise_tests.h"
 #include "itc/future.hpp"
 
+#include "utils.hpp"
 #include <chrono>
-#include <iostream>
 
 namespace future_promise_tests
 {
@@ -19,18 +19,21 @@ void run_tests(int iterations)
 
 		auto p = itc::capture(prom);
 		itc::invoke(th_id, [p, i]() mutable {
-			std::cout << "start working" << std::endl;
+			sout() << "start working"
+				   << "\n";
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
-			std::cout << "setting promise value for " << i << std::endl;
+			sout() << "setting promise value for " << i << "\n";
 
 			p.get().set_value(5);
 		});
-		std::cout << "waiting on future for " << i << std::endl;
+		sout() << "waiting on future for " << i << "\n";
 		fut.wait_for(std::chrono::milliseconds(10));
+
 		auto val0 = fut.get();
-		(void)val0;
-		std::cout << "future woke up for " << i << std::endl;
-		std::cout << "FUTURE TEST " << i << " completed" << std::endl;
+
+		sout() << "future woke up for " << i << " with value " << val0 << "\n";
+		sout() << "FUTURE TEST " << i << " completed"
+			   << "\n";
 	}
 
 	auto thread2 = itc::run_thread();
@@ -43,23 +46,25 @@ void run_tests(int iterations)
 
 		auto p = itc::capture(prom);
 		itc::invoke(th_id, [p, i]() mutable {
-			std::cout << "th1 start working for " << i << std::endl;
+			sout() << "th1 start working for " << i << "\n";
 			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
-			std::cout << "th1 setting promise value for " << i << std::endl;
+			sout() << "th1 setting promise value for " << i << "\n";
 
-			p.get().set_value(5);
+			p.get().set_value(12);
 		});
 		itc::invoke(th_id2, [fut, i]() mutable {
-			std::cout << "th2 waiting on shared_future for " << i << std::endl;
+			sout() << "th2 waiting on shared_future for " << i << "\n";
 			fut.wait_for(std::chrono::milliseconds(20));
-			std::cout << "th2 woke up on shared_future for " << i << std::endl;
+			sout() << "th2 woke up on shared_future for " << i << "\n";
 		});
-		std::cout << "th0 waiting on shared_future for " << i << std::endl;
+		sout() << "th0 waiting on shared_future for " << i << "\n";
 		fut.wait_for(std::chrono::milliseconds(10));
+
 		auto val0 = fut.get();
-		(void)val0;
-		std::cout << "th0 woke up on shared_future for " << i << std::endl;
-		std::cout << "SHARED FUTURE TEST " << i << " completed" << std::endl;
+
+		sout() << "th0 woke up on shared_future for " << i << " with value " << val0 << "\n";
+		sout() << "SHARED FUTURE TEST " << i << " completed"
+			   << "\n";
 	}
 }
 } // namespace future_promise_tests

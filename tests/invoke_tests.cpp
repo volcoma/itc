@@ -1,8 +1,9 @@
 #include "invoke_tests.h"
 #include "itc/thread.h"
 
+#include "utils.hpp"
 #include <chrono>
-#include <iostream>
+
 namespace invoke_tests
 {
 
@@ -15,14 +16,17 @@ itc::thread::id create_detached_thread(int id)
 		{
 			itc::notify(itc::get_main_id());
 
-			std::cout << "th" << id << " detached thread waiting ..." << std::endl;
+			sout() << "th" << id << " detached thread waiting ..."
+				   << "\n";
 
 			itc::this_thread::wait();
 
-			std::cout << "th" << id << " detached thread woke up ..." << std::endl;
+			sout() << "th" << id << " detached thread woke up ..."
+				   << "\n";
 		}
 
-		std::cout << "th" << id << "thread exitting ..." << std::endl;
+		sout() << "th" << id << " thread exitting ..."
+			   << "\n";
 		itc::this_thread::unregister_and_unlink();
 	});
 	th.detach();
@@ -37,11 +41,13 @@ itc::shared_thread create_shared_thread(int id)
 		{
 			itc::notify(itc::get_main_id());
 
-			std::cout << "th" << id << " shared thread waiting ..." << std::endl;
+			sout() << "th" << id << " shared thread waiting ..."
+				   << "\n";
 
 			itc::this_thread::wait();
 
-			std::cout << "th" << id << " shared thread woke up ..." << std::endl;
+			sout() << "th" << id << " shared thread woke up ..."
+				   << "\n";
 		}
 	});
 
@@ -59,7 +65,7 @@ void run_tests(int iterations)
 	auto th22 = th2_sh->get_id();
 
 	auto all_threads = itc::get_all_registered_threads();
-	std::cout << "registered threads = " << all_threads.size() << std::endl;
+	sout() << "registered threads = " << all_threads.size() << "\n";
 
 	int i = 0;
 	while(!itc::this_thread::notified_for_exit())
@@ -69,10 +75,10 @@ void run_tests(int iterations)
 			break;
 		}
 
-		std::cout << "th0 waiting ... " << i << std::endl;
+		sout() << "th0 waiting ... " << i << "\n";
 		itc::this_thread::wait();
 		itc::this_thread::process();
-		std::cout << "th0 woke up ... " << i << std::endl;
+		sout() << "th0 woke up ... " << i << "\n";
 
 		itc::notify(th1);
 		itc::notify(th11);

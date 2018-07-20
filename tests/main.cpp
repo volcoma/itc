@@ -5,6 +5,7 @@
 #include "fututre_promise_tests.h"
 #include "invoke_tests.h"
 
+#include "utils.hpp"
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -12,8 +13,8 @@
 int main()
 {
 	itc::utility_callbacks callbacks;
-	callbacks.log_error = [](const std::string& msg) { std::cout << msg << std::endl; };
-	callbacks.log_info = [](const std::string& msg) { std::cout << msg << std::endl; };
+	callbacks.log_error = [](const std::string& msg) { sout() << msg << "\n"; };
+	callbacks.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
 	itc::init(callbacks);
 
 	future_promise_tests::run_tests(50);
