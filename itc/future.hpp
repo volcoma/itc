@@ -8,7 +8,6 @@
 namespace itc
 {
 
-/// The implementations here are based on and inspired by libstd++
 template <typename T>
 class future;
 template <typename T>

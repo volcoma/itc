@@ -7,6 +7,7 @@
 
 namespace async_tests
 {
+using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
@@ -29,7 +30,7 @@ void run_tests(int iterations)
 
             auto future = itc::async(th1_id, [u = std::move(up)](int i) mutable
             {
-                itc::this_thread::sleep_for(std::chrono::milliseconds(20));
+                itc::this_thread::sleep_for(20ms);
 
                 if(rand() % 10 > 7)
                 {
@@ -40,7 +41,7 @@ void run_tests(int iterations)
 
             auto shared_future = itc::async(th2_id, [u = std::move(up)](int i) mutable
             {
-                itc::this_thread::sleep_for(std::chrono::milliseconds(20));
+                itc::this_thread::sleep_for(20ms);
 
                 if(rand() % 10 > 7)
                 {
@@ -168,7 +169,8 @@ void run_tests(int iterations)
                 itc::when_all(chain0, chain1).then(this_th_id, [](auto parent)
                 {
                     auto chains = parent.get();
-
+                    //auto index = chains.index;
+                    //
                     auto chain0 = std::move(std::get<0>(chains));
                     auto chain1 = std::move(std::get<1>(chains));
 
