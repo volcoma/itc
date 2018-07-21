@@ -247,7 +247,9 @@ thread::id get_main_id()
 	return global_state.main_id;
 }
 
-void invoke(thread::id id, task f)
+// this function exists to avoid extra moves of the functor
+// via the run_or_invoke
+void invoke_impl(thread::id id, task& f)
 {
 	if(f == nullptr)
 	{
@@ -278,6 +280,11 @@ void invoke(thread::id id, task f)
 	context->wakeup_event.notify_all();
 }
 
+void invoke(thread::id id, task f)
+{
+	invoke_impl(id, f);
+}
+
 void run_or_invoke(thread::id id, task func)
 {
 	if(this_thread::get_id() == id)
@@ -289,7 +296,7 @@ void run_or_invoke(thread::id id, task func)
 	}
 	else
 	{
-		invoke(id, std::move(func));
+		invoke_impl(id, func);
 	}
 }
 

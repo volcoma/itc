@@ -26,6 +26,7 @@ void run_tests(int iterations)
         // async + chaining continuations
         {
             // some move only object
+            // can pass it by move either to the capture list or as a parameter to async
             std::unique_ptr<int> up;
 
             auto future = itc::async(th1_id, [u = std::move(up)](int i) mutable
