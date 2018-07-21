@@ -1,6 +1,6 @@
 #pragma once
 #include "condition_variable.hpp"
-#include <forward_list>
+#include <vector>
 #include <future>
 namespace itc
 {
@@ -18,7 +18,7 @@ enum class value_status : unsigned
 template <typename T>
 struct future_shared_state
 {
-	using callback_container = std::forward_list<task>;
+	using callback_container = std::vector<task>;
 
 	condition_variable cv;
 	mutable std::mutex guard;
@@ -105,7 +105,7 @@ struct future_shared_state
 			std::lock_guard<std::mutex> lock(guard);
 			if(!ready())
 			{
-				callbacks.emplace_front(std::move(continuation));
+				callbacks.emplace_back(std::move(continuation));
 				return;
 			}
 		}
