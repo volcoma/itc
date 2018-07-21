@@ -167,7 +167,7 @@ auto when_all(InputIt first, InputIt last)
 
 	for(; first != last; ++first, ++index)
 	{
-		shared_context->result.push_back(std::move(*first));
+		shared_context->result.emplace_back(std::move(*first));
 		shared_context->result[index].then(
 			[shared_context, index](typename std::iterator_traits<InputIt>::value_type f) mutable {
 				{
