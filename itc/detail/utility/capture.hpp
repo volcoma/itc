@@ -42,6 +42,7 @@ move_on_copy_t<std::decay_t<T>> capture(T& value)
 template <typename T>
 move_on_copy_t<std::decay_t<T>> capture(T&& value)
 {
+    static_assert(std::is_rvalue_reference<decltype(value)>::value, "parameter should be an rvalue");
     return {std::forward<T>(value)};
 }
 
