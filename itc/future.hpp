@@ -26,7 +26,12 @@ using then_ret_type = callable_ret_type<F, T>;
 /// The template function async runs the function f a
 /// synchronously (potentially in a separate thread )
 /// and returns a std::future that will eventually hold
-/// the result of that function call.
+/// the result of that function call. Launch policy async
+/// means that the task will be queued regardless if the
+/// calling thread is the same as the destination thread.
+/// Policy deferred will only queue it if the calling thread
+/// and the destination thread are different otherwise it
+/// will immediately execute the task.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>;
@@ -39,6 +44,27 @@ auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<c
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>;
+
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given value
+//-----------------------------------------------------------------------------
+template <typename T>
+future<T> make_ready_future(T&& value);
+
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given exception
+//-----------------------------------------------------------------------------
+template <class T>
+future<T> make_exceptional_future(std::exception_ptr ex);
+
+//-----------------------------------------------------------------------------
+/// produces a future that is ready immediately
+/// and holds the given exception
+//-----------------------------------------------------------------------------
+template <class T, class E>
+future<T> make_exceptional_future(E ex);
 
 namespace detail
 {
@@ -268,6 +294,11 @@ public:
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
 	/// After this function returns, valid() is false.
+	/// Launch policy asyncmeans that the continuation will be queued
+	/// regardless if the calling thread is the same as the destination thread.
+	/// Policy deferred will only queue it if the calling thread
+	/// and the destination thread are different otherwise it
+	/// will immediately execute the continuation when the future is ready.
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>;
@@ -322,6 +353,11 @@ public:
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
 	/// After this function returns, valid() is false.
+	/// Launch policy asyncmeans that the continuation will be queued
+	/// regardless if the calling thread is the same as the destination thread.
+	/// Policy deferred will only queue it if the calling thread
+	/// and the destination thread are different otherwise it
+	/// will immediately execute the continuation when the future is ready.
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>;
@@ -382,6 +418,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
+	/// Launch policy asyncmeans that the continuation will be queued
+	/// regardless if the calling thread is the same as the destination thread.
+	/// Policy deferred will only queue it if the calling thread
+	/// and the destination thread are different otherwise it
+	/// will immediately execute the continuation when the future is ready.
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
@@ -440,6 +481,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
 	/// if *this has no associated shared state (i.e., valid() == false).
+	/// Launch policy asyncmeans that the continuation will be queued
+	/// regardless if the calling thread is the same as the destination thread.
+	/// Policy deferred will only queue it if the calling thread
+	/// and the destination thread are different otherwise it
+	/// will immediately execute the continuation when the future is ready.
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) const
@@ -454,8 +500,7 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-/// produces a future that is ready immediately
-/// and holds the given value
+/// IMPLEMENTATIONS
 //-----------------------------------------------------------------------------
 template <typename T>
 future<T> make_ready_future(T&& value)
@@ -465,10 +510,6 @@ future<T> make_ready_future(T&& value)
 	return prom.get_future();
 }
 
-//-----------------------------------------------------------------------------
-/// produces a future that is ready immediately
-/// and holds the given value
-//-----------------------------------------------------------------------------
 inline future<void> make_ready_future()
 {
 	promise<void> prom;
@@ -476,10 +517,6 @@ inline future<void> make_ready_future()
 	return prom.get_future();
 }
 
-//-----------------------------------------------------------------------------
-/// produces a future that is ready immediately
-/// and holds the given exception
-//-----------------------------------------------------------------------------
 template <class T>
 future<T> make_exceptional_future(std::exception_ptr ex)
 {
@@ -488,10 +525,6 @@ future<T> make_exceptional_future(std::exception_ptr ex)
 	return p.get_future();
 }
 
-//-----------------------------------------------------------------------------
-/// produces a future that is ready immediately
-/// and holds the given exception
-//-----------------------------------------------------------------------------
 template <class T, class E>
 future<T> make_exceptional_future(E ex)
 {
@@ -500,9 +533,6 @@ future<T> make_exceptional_future(E ex)
 	return p.get_future();
 }
 
-//-----------------------------------------------------------------------------
-/// IMPLEMENTATIONS
-//-----------------------------------------------------------------------------
 template <typename T>
 shared_future<T> future<T>::share()
 {
