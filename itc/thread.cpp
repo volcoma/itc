@@ -34,7 +34,7 @@ struct shared_data
 	std::unordered_map<std::thread::id, thread::id> id_map;
 	std::unordered_map<thread::id, std::shared_ptr<thread_context>> contexts;
 	thread::id main_id = invalid_id();
-	utility_callbacks utilities;
+	init_data utilities;
 };
 
 static shared_data global_state;
@@ -144,7 +144,7 @@ void unregister_thread_impl(thread::id id)
 	}
 }
 
-void init(const utility_callbacks& callbacks)
+void init(const init_data& data)
 {
 	itc::this_thread::register_and_link();
 
@@ -156,7 +156,7 @@ void init(const utility_callbacks& callbacks)
 	}
 
 	global_state.main_id = this_thread::get_id();
-	global_state.utilities = callbacks;
+	global_state.utilities = data;
 
 	log_info_func("Successful.");
 }

@@ -12,10 +12,10 @@
 
 int main()
 {
-	itc::utility_callbacks callbacks;
-	callbacks.log_error = [](const std::string& msg) { sout() << msg << "\n"; };
-	callbacks.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
-	itc::init(callbacks);
+	itc::init_data data;
+	data.log_error = [](const std::string& msg) { sout() << msg << "\n"; };
+	data.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
+	itc::init(data);
 
 	invoke_tests::run_tests(1000);
 	cv_tests::run_tests(50);

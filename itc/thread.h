@@ -49,7 +49,7 @@ using shared_thread = std::shared_ptr<thread>;
 using task = std::function<void()>;
 using clock = std::chrono::steady_clock;
 
-struct utility_callbacks
+struct init_data
 {
 	std::function<void(const std::string&)> log_info;
 	std::function<void(const std::string&)> log_error;
@@ -59,7 +59,7 @@ struct utility_callbacks
 //-----------------------------------------------------------------------------
 /// Inits the itc with user provided utility callbacks
 //-----------------------------------------------------------------------------
-void init(const utility_callbacks& callbacks = {});
+void init(const init_data& data = {});
 
 //-----------------------------------------------------------------------------
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
