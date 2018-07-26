@@ -163,6 +163,24 @@ void run_tests(int iterations)
                     return result;
                 });
 
+                auto chain4 = shared_future.then(th1_id, [](auto parent)
+                {
+                    auto result = parent.get();
+                    sout() << "chain 4.1 then " << "\n";
+                    return result;
+                })
+                .then(this_th_id, [](auto parent)
+                {
+                    auto result = parent.get();
+                    sout() << "chain 4.2 then " << "\n";
+                    return result;
+                })
+                .then(th2_id, [](auto parent)
+                {
+                    auto result = parent.get();
+                    sout() << "chain 4.3 then " << "\n";
+                    return result;
+                });
 
                 // Use an applicative pattern. Attach a continuation depending
                 // on multiple futures
@@ -193,22 +211,32 @@ void run_tests(int iterations)
 
 //                });
 
+                itc::when_any(chain2, chain3).then(this_th_id, [](auto parent)
+                {
+                    auto result = parent.get();
+                    auto chains = std::move(result.futures);
+                    auto index = result.index;
+
+                    // facility to access tuple element by runtime index
+                    itc::visit_at(chains, index, [index](auto& chain)
+                    {
+                        try
+                        {
+                            auto result = chain.get();
+                            sout() << "woke up on chain " << index << " with result " << result << "\n";
+                        }
+                        catch(const std::exception& e)
+                        {
+                            sout() << e.what() << " from " << index << "\n";
+                        }
+                    });
+                });
+
                 // Wait for the rest of the chains
                 try
                 {
-                    sout() << "wait on chain 2" << "\n";
-                    auto result = chain2.get();
-                    sout() << "woke up on chain 2 with result " << result << "\n";
-                }
-                catch(const std::exception& e)
-                {
-                    sout() << e.what() << "\n";
-                }
-
-                try
-                {
-                    sout() << "wait on chain 3" << "\n";
-                    auto result = chain3.get();
+                    sout() << "wait on chain 4" << "\n";
+                    auto result = chain4.get();
                     sout() << "woke up on chain 3 with result " << result << "\n";
                 }
                 catch(const std::exception& e)

@@ -17,10 +17,10 @@ int main()
 	callbacks.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
 	itc::init(callbacks);
 
+	invoke_tests::run_tests(1000);
+	cv_tests::run_tests(50);
 	future_promise_tests::run_tests(50);
 	async_tests::run_tests(50);
-	cv_tests::run_tests(50);
-	invoke_tests::run_tests(1000);
 
 	itc::shutdown();
 	return 0;

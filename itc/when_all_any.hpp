@@ -45,11 +45,18 @@ template <typename InputIt>
 auto when_any(InputIt first, InputIt last)
 	-> future<when_any_result<std::vector<typename std::iterator_traits<InputIt>::value_type>>>;
 
+template <typename F, typename... Ts>
+void visit_at(std::tuple<Ts...> const& tup, size_t idx, F&& fun);
+
+template <typename F, typename... Ts>
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun);
+
 //-----------------------------------------------------------------------------
 /// IMPLEMENTATION
 //-----------------------------------------------------------------------------
 namespace detail
 {
+
 template <size_t I, typename Context>
 void when_any_inner_helper(Context context)
 {
@@ -142,6 +149,34 @@ void apply_helper(const Context& context, FirstFuture&& f, Futures&&... fs)
 	detail::when_inner_helper<I>(context, std::forward<FirstFuture>(f));
 	apply_helper<I + 1>(context, std::forward<Futures>(fs)...);
 }
+
+template <size_t I>
+struct visit_impl
+{
+	template <typename T, typename F>
+	static void visit(T& tup, size_t idx, F&& fun)
+	{
+		if(idx == I - 1)
+		{
+			fun(std::get<I - 1>(tup));
+		}
+		else
+		{
+			visit_impl<I - 1>::visit(tup, idx, std::forward<F>(fun));
+		}
+	}
+};
+
+template <>
+struct visit_impl<0>
+{
+	template <typename T, typename F>
+	static void visit(T&, size_t, F&&)
+	{
+        throw std::runtime_error("bad field index");
+	}
+};
+
 }
 
 template <typename InputIt>
@@ -303,4 +338,15 @@ auto when_any(Futures&&... futures) -> future<when_any_result<std::tuple<std::de
 	return shared_context->p.get_future();
 }
 
+template <typename F, typename... Ts>
+void visit_at(std::tuple<Ts...> const& tup, size_t idx, F&& fun)
+{
+	detail::visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
+}
+
+template <typename F, typename... Ts>
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun)
+{
+	detail::visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
+}
 } // namespace itc
