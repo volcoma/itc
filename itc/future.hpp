@@ -573,8 +573,8 @@ auto package_task(F&& func, Args&&... args) -> std::pair<future<callable_ret_typ
 
 	auto f = capture(std::forward<F>(func));
 	auto p = capture(prom);
-
 	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
+
 	// here we are just forwarding args. If we do not want to
 	// deal with them not being copy constructable then
 	// we should use capture shananigans also.
@@ -637,14 +637,14 @@ auto future<T>::then(thread::id id, std::launch policy, F&& func) -> future<then
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([f = std::forward<F>(func), state]() mutable {
+	auto package = detail::package_task([f = std::forward<F>(func), state]() {
 		future<T> self(state);
-		return utility::invoke(std::forward<F>(f), std::move(self));
+		return utility::invoke(f, std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
 
-	state->set_continuation([id, policy, task = move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -665,14 +665,14 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
 		shared_future<T> self(state);
-		return utility::invoke(std::forward<F>(f), std::move(self));
+		return utility::invoke(f, std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
 
-	state->set_continuation([id, policy, task = move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -691,14 +691,14 @@ auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<t
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
 		future<void> self(state);
-		utility::invoke(std::forward<F>(f), std::move(self));
+		utility::invoke(f, std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
 
-	state->set_continuation([id, policy, task = move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -717,14 +717,14 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) cons
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
 		shared_future<void> self(state);
-		utility::invoke(std::forward<F>(f), std::move(self));
+		utility::invoke(f, std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
 
-	state->set_continuation([id, policy, task = move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
