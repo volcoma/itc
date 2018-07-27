@@ -17,7 +17,7 @@ template <typename T>
 class promise;
 
 template <typename F, typename... Args>
-using callable_ret_type = std::result_of_t<std::decay_t<F>(std::decay_t<Args>...)>;
+using callable_ret_type = std::result_of_t<std::decay_t<F>(typename std::decay<Args>::type...)>;
 
 template <typename F, typename T>
 using then_ret_type = callable_ret_type<F, T>;
