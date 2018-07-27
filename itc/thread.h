@@ -18,12 +18,19 @@ class thread : public std::thread
 public:
 	using id = std::uint64_t;
 
+	thread() noexcept = default;
+	thread(thread&&) noexcept = default;
+	thread(const thread&) = delete;
 	template <typename F, typename... Args>
 	explicit thread(F&& f, Args&&... args)
 		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
 	{
 		register_this();
 	}
+
+	thread& operator=(thread&&) noexcept = default;
+	thread& operator=(const thread&) = delete;
+
 	//-----------------------------------------------------------------------------
 	/// Destructs the thread object. Notifies and joins if joinable.
 	//-----------------------------------------------------------------------------
@@ -42,7 +49,7 @@ public:
 private:
 	void register_this();
 
-	id id_;
+	id id_ = 0;
 };
 
 using shared_thread = std::shared_ptr<thread>;
@@ -55,6 +62,14 @@ struct init_data
 	std::function<void(const std::string&)> log_error;
 	std::function<void(std::thread&, const std::string&)> set_thread_name;
 };
+
+//-----------------------------------------------------------------------------
+/// Gets an invalid thread::id
+//-----------------------------------------------------------------------------
+constexpr inline thread::id invalid_id()
+{
+	return 0;
+}
 
 //-----------------------------------------------------------------------------
 /// Inits the itc with user provided utility callbacks
@@ -70,11 +85,6 @@ void shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
 /// Retrieves all registered thread ids.
 //-----------------------------------------------------------------------------
 std::vector<thread::id> get_all_registered_threads();
-
-//-----------------------------------------------------------------------------
-/// Gets an invalid thread::id
-//-----------------------------------------------------------------------------
-thread::id invalid_id();
 
 //-----------------------------------------------------------------------------
 /// Retrieves the main thread id.

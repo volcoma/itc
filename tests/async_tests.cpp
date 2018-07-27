@@ -52,7 +52,7 @@ void run_tests(int iterations)
             }, i).share();
 
             {
-                auto chain = future.then(th1_id, [](auto parent)
+                auto chain = future.then(th1_id, [u = std::move(up)](auto parent)
                 {
                     auto result = parent.get();
                     sout() << "chain then " << "\n";

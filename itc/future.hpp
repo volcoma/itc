@@ -17,7 +17,7 @@ template <typename T>
 class promise;
 
 template <typename F, typename... Args>
-using callable_ret_type = std::result_of_t<std::decay_t<F>(Args...)>;
+using callable_ret_type = std::result_of_t<std::decay_t<F>(std::decay_t<Args>...)>;
 
 template <typename F, typename T>
 using then_ret_type = callable_ret_type<F, T>;
@@ -233,10 +233,18 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Sets the result to specific value
 	//-----------------------------------------------------------------------------
-	void set_value(T value)
+	void set_value(T&& value)
 	{
 		check_state(this->state_);
 		this->state_->set_value(std::move(value));
+	}
+	//-----------------------------------------------------------------------------
+	/// Sets the result to specific value
+	//-----------------------------------------------------------------------------
+	void set_value(const T& value)
+	{
+		check_state(this->state_);
+		this->state_->set_value(value);
 	}
 };
 template <>
@@ -338,7 +346,7 @@ public:
 	{
 		this->wait();
 		auto state = std::move(this->state_);
-		state->rethrow_any_exception();
+		state->get_value_assuming_ready();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -475,7 +483,7 @@ public:
 	void get() const
 	{
 		wait();
-		state_->rethrow_any_exception();
+		state_->get_value_assuming_ready();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -627,11 +635,11 @@ auto future<T>::then(thread::id id, std::launch policy, F&& func) -> future<then
 {
 	detail::check_state(this->state_);
 
+	// invalidate the state
 	auto state = std::move(this->state_);
-	auto f = capture(std::forward<F>(func));
-	auto package = detail::package_task([f, state]() mutable {
+	auto package = detail::package_task([f = std::forward<F>(func), state]() mutable {
 		future<T> self(state);
-		return utility::invoke(f.get(), std::move(self));
+		return utility::invoke(std::forward<F>(f), std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
@@ -655,11 +663,11 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
 {
 	detail::check_state(this->state_);
 
+	// do not invalidate the state
 	auto state = this->state_;
-	auto f = capture(std::forward<F>(func));
-	auto package = detail::package_task([id, policy, f, state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
 		shared_future<T> self(state);
-		return utility::invoke(f.get(), std::move(self));
+		return utility::invoke(std::forward<F>(f), std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
@@ -681,11 +689,11 @@ auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<t
 {
 	detail::check_state(this->state_);
 
+	// invalidate the state
 	auto state = std::move(this->state_);
-	auto f = capture(std::forward<F>(func));
-	auto package = detail::package_task([id, policy, f, state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
 		future<void> self(state);
-		utility::invoke(f.get(), std::move(self));
+		utility::invoke(std::forward<F>(f), std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;
@@ -707,11 +715,11 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) cons
 {
 	detail::check_state(this->state_);
 
+	// do not invalidate the state
 	auto state = this->state_;
-	auto f = capture(std::forward<F>(func));
-	auto package = detail::package_task([id, policy, f, state]() mutable {
+	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() mutable {
 		shared_future<void> self(state);
-		utility::invoke(f.get(), std::move(self));
+		utility::invoke(std::forward<F>(f), std::move(self));
 	});
 	auto& future = package.first;
 	auto& task = package.second;

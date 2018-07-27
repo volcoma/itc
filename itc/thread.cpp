@@ -525,11 +525,6 @@ shared_thread run_thread(const std::string& name)
 	return th;
 }
 
-thread::id invalid_id()
-{
-	return 0;
-}
-
 thread::id thread::get_id() const
 {
 	return id_;

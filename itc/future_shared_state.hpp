@@ -1,7 +1,7 @@
 #pragma once
 #include "condition_variable.hpp"
-#include <vector>
 #include <future>
+#include <vector>
 namespace itc
 {
 
@@ -16,7 +16,7 @@ enum class value_status : unsigned
 };
 
 template <typename T>
-struct future_shared_state
+struct basic_shared_state
 {
 	using callback_container = std::vector<task>;
 
@@ -24,11 +24,9 @@ struct future_shared_state
 	mutable std::mutex guard;
 	callback_container callbacks;
 
-	std::shared_ptr<T> value;
 	std::exception_ptr exception;
 
 	std::atomic<value_status> status = {value_status::not_set};
-
 	std::atomic_flag retrieved = ATOMIC_FLAG_INIT;
 
 	bool ready() const
@@ -39,32 +37,6 @@ struct future_shared_state
 	bool has_error() const
 	{
 		return status == value_status::error;
-	}
-
-	template <typename V>
-	void set_value(V&& val)
-	{
-		std::unique_lock<std::mutex> lock(guard);
-
-		if(ready())
-		{
-			throw std::future_error(std::future_errc::promise_already_satisfied);
-		}
-
-		value = std::make_shared<V>(std::forward<V>(val));
-		set_ready(lock, value_status::ready);
-	}
-
-	void set_value()
-	{
-		std::unique_lock<std::mutex> lock(guard);
-
-		if(ready())
-		{
-			throw std::future_error(std::future_errc::promise_already_satisfied);
-		}
-
-		set_ready(lock, value_status::ready);
 	}
 
 	void set_exception(std::exception_ptr ex)
@@ -150,25 +122,6 @@ struct future_shared_state
 		return std::future_status::ready;
 	}
 
-	decltype(auto) get_value_assuming_ready()
-	{
-		if(value)
-		{
-			return *value;
-		}
-		else
-		{
-			if(exception)
-			{
-				std::rethrow_exception(exception);
-			}
-			else
-			{
-				throw std::future_error(std::future_errc::broken_promise);
-			}
-		}
-	}
-
 	void rethrow_any_exception() const
 	{
 		if(exception)
@@ -178,6 +131,65 @@ struct future_shared_state
 	}
 };
 
+template <typename T>
+struct future_shared_state : public basic_shared_state<T>
+{
+	std::shared_ptr<T> value;
+
+	template <typename V>
+	void set_value(V&& val)
+	{
+		std::unique_lock<std::mutex> lock(this->guard);
+
+		if(ready())
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
+
+		value = std::make_shared<V>(std::forward<V>(val));
+		set_ready(lock, value_status::ready);
+	}
+
+	decltype(auto) get_value_assuming_ready()
+	{
+		if(value)
+		{
+			return *value;
+		}
+		else
+		{
+			if(this->exception)
+			{
+				std::rethrow_exception(this->exception);
+			}
+			else
+			{
+				throw std::future_error(std::future_errc::broken_promise);
+			}
+		}
+	}
+};
+
+template <>
+struct future_shared_state<void> : public basic_shared_state<void>
+{
+	void set_value()
+	{
+		std::unique_lock<std::mutex> lock(guard);
+
+		if(ready())
+		{
+			throw std::future_error(std::future_errc::promise_already_satisfied);
+		}
+
+		set_ready(lock, value_status::ready);
+	}
+
+	void get_value_assuming_ready()
+	{
+		rethrow_any_exception();
+	}
+};
 template <typename T>
 inline void check_state(const std::shared_ptr<future_shared_state<T>>& state)
 {

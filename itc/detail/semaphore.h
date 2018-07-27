@@ -88,7 +88,7 @@ protected:
 	void remove_waiter(thread::id id) const;
 
 	mutable std::mutex mutex_;
-	mutable std::list<waiter_info> waiters_;
+	mutable std::vector<waiter_info> waiters_;
 };
 } // namespace detail
 } // namespace itc

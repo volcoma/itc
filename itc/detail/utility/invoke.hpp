@@ -107,14 +107,30 @@ constexpr inline auto invoke(F&& f, Args&&... args) noexcept(
 // Conforming C++14 implementation (is also a valid C++11 implementation):
 namespace detail
 {
+template <typename T>
+struct identity
+{
+	using type = T;
+};
+template <typename...>
+struct voider : identity<void>
+{
+};
+
+template <typename... Ts>
+using void_t = typename voider<Ts...>::type;
+
+template <typename F, typename... Args>
+using invoke_result_ = decltype(invoke(std::declval<F>(), std::declval<Args>()...));
+
 template <typename AlwaysVoid, typename, typename...>
 struct invoke_result
 {
 };
 template <typename F, typename... Args>
-struct invoke_result<decltype(void(invoke(std::declval<F>(), std::declval<Args>()...))), F, Args...>
+struct invoke_result<void_t<invoke_result_<F, Args...>>, F, Args...>
 {
-	using type = decltype(invoke(std::declval<F>(), std::declval<Args>()...));
+	using type = invoke_result_<F, Args...>;
 };
 } // namespace detail
 

@@ -173,10 +173,9 @@ struct visit_impl<0>
 	template <typename T, typename F>
 	static void visit(T&, size_t, F&&)
 	{
-        throw std::runtime_error("bad field index");
+		throw std::runtime_error("bad field index");
 	}
 };
-
 }
 
 template <typename InputIt>
