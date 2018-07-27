@@ -141,13 +141,13 @@ struct future_shared_state : public basic_shared_state<T>
 	{
 		std::unique_lock<std::mutex> lock(this->guard);
 
-		if(ready())
+		if(this->ready())
 		{
 			throw std::future_error(std::future_errc::promise_already_satisfied);
 		}
 
-		value = std::make_shared<V>(std::forward<V>(val));
-		set_ready(lock, value_status::ready);
+		this->value = std::make_shared<V>(std::forward<V>(val));
+		this->set_ready(lock, value_status::ready);
 	}
 
 	decltype(auto) get_value_assuming_ready()
