@@ -10,8 +10,8 @@ template <typename T>
 class move_on_copy_t
 {
 public:
-	move_on_copy_t& operator=(const move_on_copy_t<T>& other) = delete;
-	move_on_copy_t& operator=(move_on_copy_t<T>&& other) = delete;
+	move_on_copy_t& operator=(const move_on_copy_t& other) = delete;
+	move_on_copy_t& operator=(move_on_copy_t&& other) = delete;
 
 	move_on_copy_t(T&& value) noexcept
 		: value_(std::forward<T>(value))
@@ -50,8 +50,8 @@ class move_on_copy_pack_t
 {
 public:
 	using T = std::tuple<std::decay_t<Args>...>;
-	move_on_copy_pack_t& operator=(const move_on_copy_pack_t<T>& other) = delete;
-	move_on_copy_pack_t& operator=(move_on_copy_pack_t<T>&& other) = delete;
+	move_on_copy_pack_t& operator=(const move_on_copy_pack_t& other) = delete;
+	move_on_copy_pack_t& operator=(move_on_copy_pack_t&& other) = delete;
 
 	move_on_copy_pack_t(Args&&... value) noexcept
 		: value_(std::forward<Args>(value)...)
