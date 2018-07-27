@@ -100,33 +100,34 @@ struct when_any_helper_struct<S, S>
 	}
 };
 
-template <typename T, std::enable_if_t<std::is_copy_constructible<T>::value>* = nullptr>
-decltype(auto) move_or_copy(T& v)
-{
-	return std::forward<T>(v);
-}
-
-template <typename T, std::enable_if_t<!std::is_copy_constructible<T>::value>* = nullptr>
-decltype(auto) move_or_copy(T& v)
-{
-	return std::move(v);
-}
 template <size_t I, typename Context>
 void fill_result_helper(const Context&)
 {
 }
 
+template <typename T, std::enable_if_t<std::is_copy_constructible<T>::value>* = nullptr>
+decltype(auto) move_or_forward(T& v)
+{
+	return std::forward<T>(v);
+}
+
+template <typename T, std::enable_if_t<!std::is_copy_constructible<T>::value>* = nullptr>
+decltype(auto) move_or_forward(T& v)
+{
+	return std::move(v);
+}
+
 template <size_t I, typename Context, typename FirstFuture, typename... Futures>
 void fill_result_helper(const Context& context, FirstFuture&& f, Futures&&... fs)
 {
-	std::get<I>(context->result.futures) = move_or_copy(std::forward<FirstFuture>(f));
+	std::get<I>(context->result.futures) = move_or_forward(std::forward<FirstFuture>(f));
 	fill_result_helper<I + 1>(context, std::forward<Futures>(fs)...);
 }
 
 template <size_t I, typename Context, typename Future>
 void when_inner_helper(Context context, Future&& f)
 {
-	std::get<I>(context->result) = move_or_copy(std::forward<Future>(f));
+	std::get<I>(context->result) = move_or_forward(std::forward<Future>(f));
 	auto id = this_thread::get_id();
 
 	std::get<I>(context->result).then(id, [context](typename std::remove_reference<Future>::type f) {

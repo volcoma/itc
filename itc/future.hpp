@@ -564,8 +564,15 @@ std::enable_if_t<std::is_same<T, void>::value> safe_call(promise<T>& p, F&& f, A
 	utility::apply(std::forward<F>(f), std::forward<Args>(args));
 	p.set_value();
 }
+template <typename T>
+struct packaged_task
+{
+	task func;
+	future<T> future;
+};
+
 template <typename F, typename... Args>
-auto package_task(F&& func, Args&&... args) -> std::pair<future<callable_ret_type<F, Args...>>, task>
+auto package_task(F&& func, Args&&... args) -> packaged_task<callable_ret_type<F, Args...>>
 {
 	using return_type = callable_ret_type<F, Args...>;
 	auto prom = promise<return_type>();
@@ -573,12 +580,12 @@ auto package_task(F&& func, Args&&... args) -> std::pair<future<callable_ret_typ
 
 	auto f = capture(std::forward<F>(func));
 	auto p = capture(prom);
-	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
+	auto params = capture_pack(std::forward<Args>(args)...);
 
 	// here we are just forwarding args. If we do not want to
 	// deal with them not being copy constructable then
 	// we should use capture shananigans also.
-	return {std::move(fut), [f, p, params]() mutable {
+	return {[f, p, params]() mutable {
 				try
 				{
 					detail::safe_call(p.get(), f.get(), params.get());
@@ -594,7 +601,8 @@ auto package_task(F&& func, Args&&... args) -> std::pair<future<callable_ret_typ
 					{
 					} // set_exception() may throw too
 				}
-			}};
+			},
+			std::move(fut)};
 }
 
 inline void launch(thread::id id, std::launch policy, task& func)
@@ -614,8 +622,8 @@ template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>
 {
 	auto package = detail::package_task(std::forward<F>(f), std::forward<Args>(args)...);
-	auto& future = package.first;
-	auto& task = package.second;
+	auto& future = package.future;
+	auto& task = package.func;
 
 	detail::launch(id, policy, task);
 
@@ -641,10 +649,11 @@ auto future<T>::then(thread::id id, std::launch policy, F&& func) -> future<then
 		future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.first;
-	auto& task = package.second;
+	auto& future = package.future;
+	auto& task = package.func;
 
-	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation(
+		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -669,10 +678,11 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.first;
-	auto& task = package.second;
+	auto& future = package.future;
+	auto& task = package.func;
 
-	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation(
+		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -695,10 +705,11 @@ auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<t
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.first;
-	auto& task = package.second;
+	auto& future = package.future;
+	auto& task = package.func;
 
-	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation(
+		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -721,10 +732,11 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) cons
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.first;
-	auto& task = package.second;
+	auto& future = package.future;
+	auto& task = package.func;
 
-	state->set_continuation([id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation(
+		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
