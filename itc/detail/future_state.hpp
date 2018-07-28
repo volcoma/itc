@@ -1,5 +1,5 @@
 #pragma once
-#include "condition_variable.hpp"
+#include "../condition_variable.hpp"
 #include <future>
 #include <vector>
 namespace itc
@@ -16,7 +16,7 @@ enum class value_status : unsigned
 };
 
 template <typename T>
-struct basic_shared_state
+struct basic_state
 {
 	using callback_container = std::vector<task>;
 
@@ -132,7 +132,7 @@ struct basic_shared_state
 };
 
 template <typename T>
-struct future_shared_state : public basic_shared_state<T>
+struct future_state : public basic_state<T>
 {
 	std::shared_ptr<T> value;
 
@@ -171,7 +171,7 @@ struct future_shared_state : public basic_shared_state<T>
 };
 
 template <>
-struct future_shared_state<void> : public basic_shared_state<void>
+struct future_state<void> : public basic_state<void>
 {
 	void set_value()
 	{
@@ -191,7 +191,7 @@ struct future_shared_state<void> : public basic_shared_state<void>
 	}
 };
 template <typename T>
-inline void check_state(const std::shared_ptr<future_shared_state<T>>& state)
+inline void check_state(const std::shared_ptr<future_state<T>>& state)
 {
 	if(!state)
 	{
@@ -200,7 +200,7 @@ inline void check_state(const std::shared_ptr<future_shared_state<T>>& state)
 }
 
 template <typename T>
-inline void state_invalidate(std::shared_ptr<future_shared_state<T>>& state)
+inline void state_invalidate(std::shared_ptr<future_state<T>>& state)
 {
 	state.reset();
 }

@@ -2,7 +2,7 @@
 #include "detail/utility/apply.hpp"
 #include "detail/utility/capture.hpp"
 #include "detail/utility/invoke.hpp"
-#include "future_shared_state.hpp"
+#include "detail/future_state.hpp"
 #include "thread.h"
 #include <future>
 
@@ -149,14 +149,14 @@ public:
 	}
 
 protected:
-	basic_future(std::shared_ptr<future_shared_state<T>> state)
+	basic_future(std::shared_ptr<future_state<T>> state)
 	{
 		state_ = state;
 		state_->rethrow_any_exception();
 	}
 
 	/// The shared state
-	std::shared_ptr<future_shared_state<T>> state_;
+	std::shared_ptr<future_state<T>> state_;
 };
 
 template <typename T>
@@ -222,7 +222,7 @@ protected:
 	}
 
 	/// The shared state
-	std::shared_ptr<future_shared_state<T>> state_ = std::make_shared<future_shared_state<T>>();
+	std::shared_ptr<future_state<T>> state_ = std::make_shared<future_state<T>>();
 };
 } // namespace detail
 
