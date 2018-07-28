@@ -582,9 +582,6 @@ auto package_task(F&& func, Args&&... args) -> packaged_task<callable_ret_type<F
 	auto p = capture(prom);
 	auto params = capture_pack(std::forward<Args>(args)...);
 
-	// here we are just forwarding args. If we do not want to
-	// deal with them not being copy constructable then
-	// we should use capture shananigans also.
 	return {[f, p, params]() mutable {
 				try
 				{
