@@ -671,7 +671,7 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(func), state]() {
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
@@ -698,7 +698,7 @@ auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<t
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(func), state]() {
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
@@ -725,7 +725,7 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) cons
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([id, policy, f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(func), state]() {
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
