@@ -568,7 +568,7 @@ template <typename T>
 struct packaged_task
 {
 	task func;
-	future<T> future;
+	future<T> fut;
 };
 
 template <typename F, typename... Args>
@@ -622,7 +622,7 @@ template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>
 {
 	auto package = detail::package_task(std::forward<F>(f), std::forward<Args>(args)...);
-	auto& future = package.future;
+	auto& future = package.fut;
 	auto& task = package.func;
 
 	detail::launch(id, policy, task);
@@ -649,7 +649,7 @@ auto future<T>::then(thread::id id, std::launch policy, F&& func) -> future<then
 		future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.future;
+	auto& future = package.fut;
 	auto& task = package.func;
 
 	state->set_continuation(
@@ -678,7 +678,7 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.future;
+	auto& future = package.fut;
 	auto& task = package.func;
 
 	state->set_continuation(
@@ -705,7 +705,7 @@ auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<t
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.future;
+	auto& future = package.fut;
 	auto& task = package.func;
 
 	state->set_continuation(
@@ -732,7 +732,7 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) cons
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.future;
+	auto& future = package.fut;
 	auto& task = package.func;
 
 	state->set_continuation(
