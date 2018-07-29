@@ -146,7 +146,7 @@ void unregister_thread_impl(thread::id id)
 
 void init(const init_data& data)
 {
-	itc::this_thread::register_and_link();
+	itc::this_thread::register_this_thread();
 
 	std::unique_lock<std::mutex> lock(global_state.mutex);
 	if(global_state.main_id != invalid_id())
@@ -163,7 +163,7 @@ void init(const init_data& data)
 
 void shutdown(const std::chrono::seconds& timeout)
 {
-	itc::this_thread::unregister_and_unlink();
+	itc::this_thread::unregister_this_thread();
 
 	log_info_func("Notifying and waiting for threads to complete.");
 
@@ -441,13 +441,13 @@ void wait()
 }
 } // namespace detail
 
-void register_and_link()
+void register_this_thread()
 {
 	auto context = register_thread_impl(std::this_thread::get_id());
 	set_local_context(context.get());
 }
 
-void unregister_and_unlink()
+void unregister_this_thread()
 {
 	unregister_thread_impl(get_id());
 	set_local_context(nullptr);
@@ -510,14 +510,14 @@ bool is_main_thread()
 shared_thread run_thread(const std::string& name)
 {
 	auto th = std::make_shared<itc::thread>([]() {
-		this_thread::register_and_link();
+		this_thread::register_this_thread();
 
 		while(!this_thread::notified_for_exit())
 		{
 			this_thread::wait();
 		}
 
-		this_thread::unregister_and_unlink();
+		this_thread::unregister_this_thread();
 	});
 
 	name_thread(*th, name);

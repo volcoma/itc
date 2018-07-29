@@ -130,12 +130,12 @@ namespace this_thread
 //-----------------------------------------------------------------------------
 /// Registers this thread and links it for fast access.
 //-----------------------------------------------------------------------------
-void register_and_link();
+void register_this_thread();
 
 //-----------------------------------------------------------------------------
 /// Unregisters this thread and unlinks it.
 //-----------------------------------------------------------------------------
-void unregister_and_unlink();
+void unregister_this_thread();
 
 //-----------------------------------------------------------------------------
 /// Check whether this thread has been notified for exit.

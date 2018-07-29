@@ -10,7 +10,7 @@ namespace invoke_tests
 itc::thread::id create_detached_thread(int id)
 {
 	itc::thread th([id]() {
-		itc::this_thread::register_and_link();
+		itc::this_thread::register_this_thread();
 
 		while(!itc::this_thread::notified_for_exit())
 		{
@@ -27,7 +27,7 @@ itc::thread::id create_detached_thread(int id)
 
 		sout() << "th" << id << " thread exitting ..."
 			   << "\n";
-		itc::this_thread::unregister_and_unlink();
+		itc::this_thread::unregister_this_thread();
 	});
 	th.detach();
 	return th.get_id();
