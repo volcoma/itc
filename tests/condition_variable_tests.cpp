@@ -10,15 +10,15 @@ namespace cv_tests
 
 void run_tests(int iterations)
 {
-	auto th1 = itc::run_thread();
-	auto th2 = itc::run_thread();
+	auto th1 = itc::make_thread();
+	auto th2 = itc::make_thread();
 
 	for(int i = 0; i < iterations; ++i)
 	{
 		// for the purpose of testing we will make it as shared_ptr
 		auto cv = std::make_shared<itc::condition_variable>();
 
-		itc::invoke(th1->get_id(), [cv, i]() {
+		itc::invoke(th1.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
 			auto res = cv->wait_for(lock, std::chrono::milliseconds(50));
@@ -32,7 +32,7 @@ void run_tests(int iterations)
 			}
 		});
 
-		itc::invoke(th2->get_id(), [cv, i]() {
+		itc::invoke(th2.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
 			auto res = cv->wait_for(lock, std::chrono::milliseconds(100));

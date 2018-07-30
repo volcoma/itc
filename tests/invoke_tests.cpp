@@ -33,10 +33,10 @@ itc::thread::id create_detached_thread(int id)
 	return th.get_id();
 }
 
-itc::shared_thread create_shared_thread(int id)
+itc::thread create_shared_thread(int id)
 {
-	auto th = itc::run_thread();
-	itc::invoke(th->get_id(), [id]() {
+	auto th = itc::make_thread();
+	itc::invoke(th.get_id(), [id]() {
 		while(!itc::this_thread::notified_for_exit())
 		{
 			itc::notify(itc::get_main_id());
@@ -58,11 +58,11 @@ void run_tests(int iterations)
 {
 	auto th1 = create_detached_thread(1);
 	auto th1_sh = create_shared_thread(2);
-	auto th11 = th1_sh->get_id();
+	auto th11 = th1_sh.get_id();
 
 	auto th2 = create_detached_thread(3);
 	auto th2_sh = create_shared_thread(4);
-	auto th22 = th2_sh->get_id();
+	auto th22 = th2_sh.get_id();
 
 	auto all_threads = itc::get_all_registered_threads();
 	sout() << "registered threads = " << all_threads.size() << "\n";
@@ -80,8 +80,10 @@ void run_tests(int iterations)
 		itc::this_thread::process();
 		sout() << "th0 woke up ... " << i << "\n";
 
-		itc::notify(th1);
-		itc::notify(th11);
+		itc::invoke(th1, [](int arg) { sout() << arg << "\n"; }, i);
+
+		// notify just invokes an empty lambda there
+		itc::notify(th11); // identical to itc::invoke(th11, [](){});
 		itc::notify(th2);
 		itc::notify(th22);
 	}

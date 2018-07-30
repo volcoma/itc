@@ -1,4 +1,5 @@
 #pragma once
+#include "detail/utility/apply.hpp"
 #include "detail/utility/capture.hpp"
 
 #include <chrono>
@@ -20,7 +21,8 @@ public:
 
 	thread() noexcept = default;
 	thread(thread&&) noexcept = default;
-	thread(const thread&) = delete;
+	thread& operator=(thread&&) noexcept = default;
+
 	template <typename F, typename... Args>
 	explicit thread(F&& f, Args&&... args)
 		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
@@ -28,7 +30,7 @@ public:
 		register_this();
 	}
 
-	thread& operator=(thread&&) noexcept = default;
+	thread(const thread&) = delete;
 	thread& operator=(const thread&) = delete;
 
 	//-----------------------------------------------------------------------------
@@ -49,6 +51,7 @@ public:
 private:
 	void register_this();
 
+	/// associated thread id
 	id id_ = 0;
 };
 
@@ -62,6 +65,9 @@ struct init_data
 	std::function<void(const std::string&)> log_error;
 	std::function<void(std::thread&, const std::string&)> set_thread_name;
 };
+
+template <typename F, typename... Args>
+using callable_ret_type = std::result_of_t<std::decay_t<F>(Args...)>;
 
 //-----------------------------------------------------------------------------
 /// Gets an invalid thread::id
@@ -87,6 +93,12 @@ void shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
 std::vector<thread::id> get_all_registered_threads();
 
 //-----------------------------------------------------------------------------
+/// Retrieves the count of pending tasks for given thread id.
+/// Useful for debug.
+//-----------------------------------------------------------------------------
+std::size_t get_pending_task_count(thread::id id);
+
+//-----------------------------------------------------------------------------
 /// Retrieves the main thread id.
 //-----------------------------------------------------------------------------
 thread::id get_main_id();
@@ -94,13 +106,15 @@ thread::id get_main_id();
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
 //-----------------------------------------------------------------------------
-void invoke(thread::id id, task func);
+template <typename F, typename... Args>
+void invoke(thread::id id, F&& f, Args&&... args);
 
 //-----------------------------------------------------------------------------
 /// If the thread is the current one then execute the task directly
 /// else behave like invoke.
 //-----------------------------------------------------------------------------
-void run_or_invoke(thread::id, task func);
+template <typename F, typename... Args>
+void run_or_invoke(thread::id id, F&& f, Args&&... args);
 
 //-----------------------------------------------------------------------------
 /// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
@@ -123,7 +137,8 @@ thread::id register_thread(std::thread::id id);
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
 //-----------------------------------------------------------------------------
-shared_thread run_thread(const std::string& name = "");
+thread make_thread(const std::string& name = "");
+shared_thread make_shared_thread(const std::string& name = "");
 
 namespace this_thread
 {
@@ -146,6 +161,12 @@ bool notified_for_exit();
 /// Process all tasks.
 //-----------------------------------------------------------------------------
 void process();
+
+//-----------------------------------------------------------------------------
+/// Process all tasks.
+//-----------------------------------------------------------------------------
+template <typename Rep, typename Period>
+void process_for(const std::chrono::duration<Rep, Period>& rtime);
 
 //-----------------------------------------------------------------------------
 /// Gets the current thread id. Returns invalid id if not registered.
@@ -203,12 +224,56 @@ void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 //-----------------------------------------------------------------------------
 namespace itc
 {
+namespace detail
+{
+template <typename F, typename... Args>
+auto apply_type_erasure(F&& func, Args&&... args) -> task
+{
+	auto f = capture(std::forward<F>(func));
+	auto params = capture_pack(std::forward<Args>(args)...);
+
+	return [f, params]() mutable { utility::apply(f.get(), params.get()); };
+}
+void invoke_impl(thread::id id, task& f);
+}
+
+template <typename F, typename... Args>
+void invoke(thread::id id, F&& f, Args&&... args)
+{
+	auto task = detail::apply_type_erasure(std::forward<F>(f), std::forward<Args>(args)...);
+	detail::invoke_impl(id, task);
+}
+
+template <typename F, typename... Args>
+void run_or_invoke(thread::id id, F&& f, Args&&... args)
+{
+	auto task = detail::apply_type_erasure(std::forward<F>(f), std::forward<Args>(args)...);
+	if(this_thread::get_id() == id)
+	{
+		if(task)
+		{
+			task();
+		}
+	}
+	else
+	{
+		detail::invoke_impl(id, task);
+	}
+}
 
 namespace this_thread
 {
 namespace detail
 {
 std::cv_status wait_for(const std::chrono::nanoseconds& rtime);
+void process_for(const std::chrono::nanoseconds& rtime);
+}
+
+template <typename Rep, typename Period>
+void process_for(const std::chrono::duration<Rep, Period>& rtime)
+{
+	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
+	detail::process_for(duration);
 }
 
 template <typename Rep, typename Period>

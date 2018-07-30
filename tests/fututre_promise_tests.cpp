@@ -9,8 +9,8 @@ namespace future_promise_tests
 
 void run_tests(int iterations)
 {
-	auto thread = itc::run_thread();
-	auto th_id = thread->get_id();
+	auto thread = itc::make_thread();
+	auto th_id = thread.get_id();
 
 	for(int i = 0; i < iterations; ++i)
 	{
@@ -36,8 +36,8 @@ void run_tests(int iterations)
 			   << "\n";
 	}
 
-	auto thread2 = itc::run_thread();
-	auto th_id2 = thread2->get_id();
+	auto thread2 = itc::make_thread();
+	auto th_id2 = thread2.get_id();
 
 	for(int i = 0; i < iterations; ++i)
 	{

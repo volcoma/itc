@@ -1,8 +1,8 @@
 #pragma once
+#include "detail/future_state.hpp"
 #include "detail/utility/apply.hpp"
 #include "detail/utility/capture.hpp"
 #include "detail/utility/invoke.hpp"
-#include "detail/future_state.hpp"
 #include "thread.h"
 #include <future>
 
@@ -17,7 +17,7 @@ template <typename T>
 class promise;
 
 template <typename F, typename... Args>
-using callable_ret_type = std::result_of_t<std::decay_t<F>(Args...)>;
+using async_ret_type = callable_ret_type<F, Args...>;
 
 template <typename F, typename T>
 using then_ret_type = callable_ret_type<F, T>;
@@ -34,7 +34,7 @@ using then_ret_type = callable_ret_type<F, T>;
 /// will immediately execute the task.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>;
+auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
 
 //-----------------------------------------------------------------------------
 /// The template function async runs the function f a
@@ -43,7 +43,7 @@ auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<c
 /// the result of that function call.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-auto async(thread::id id, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>;
+auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
 
 //-----------------------------------------------------------------------------
 /// produces a future that is ready immediately
@@ -572,9 +572,9 @@ struct packaged_task
 };
 
 template <typename F, typename... Args>
-auto package_task(F&& func, Args&&... args) -> packaged_task<callable_ret_type<F, Args...>>
+auto package_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, Args...>>
 {
-	using return_type = callable_ret_type<F, Args...>;
+	using return_type = async_ret_type<F, Args...>;
 	auto prom = promise<return_type>();
 	auto fut = prom.get_future();
 
@@ -616,7 +616,7 @@ inline void launch(thread::id id, std::launch policy, task& func)
 }
 
 template <typename F, typename... Args>
-auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>
+auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
 	auto package = detail::package_task(std::forward<F>(f), std::forward<Args>(args)...);
 	auto& future = package.fut;
@@ -628,7 +628,7 @@ auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<c
 }
 
 template <typename F, typename... Args>
-auto async(thread::id id, F&& f, Args&&... args) -> future<callable_ret_type<F, Args...>>
+auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
 	return async(id, std::launch::deferred | std::launch::async, std::forward<F>(f),
 				 std::forward<Args>(args)...);

@@ -11,11 +11,11 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-	auto thread1 = itc::run_thread();
-	auto thread2 = itc::run_thread();
+	auto thread1 = itc::make_thread();
+	auto thread2 = itc::make_thread();
 
-	auto th1_id = thread1->get_id();
-	auto th2_id = thread2->get_id();
+	auto th1_id = thread1.get_id();
+	auto th2_id = thread2.get_id();
 	auto this_th_id = itc::this_thread::get_id();
 
 	for(int i = 0; i < iterations; ++i)
@@ -28,7 +28,6 @@ void run_tests(int iterations)
             // some move only object
             // can pass it by move either to the capture list or as a parameter to async
             std::unique_ptr<int> up;
-
             auto future = itc::async(th1_id, [u = std::move(up)](int i) mutable
             {
                 itc::this_thread::sleep_for(20ms);

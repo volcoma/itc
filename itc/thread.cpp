@@ -199,6 +199,31 @@ std::vector<thread::id> get_all_registered_threads()
 	return result;
 }
 
+size_t get_pending_task_count(thread::id id)
+{
+	if(id == invalid_id())
+	{
+		log_error_func("Invoking to an invalid thread.");
+		return 0;
+	}
+
+	std::unique_lock<std::mutex> lock(global_state.mutex);
+
+	auto it = global_state.contexts.find(id);
+	if(it == global_state.contexts.end())
+	{
+		return 0;
+	}
+
+	auto context = it->second;
+	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
+
+	lock.unlock();
+	const auto left_to_process = context->processing_tasks.size() - context->processing_idx;
+	const auto pending = context->tasks.size();
+	return left_to_process + pending;
+}
+
 bool has_tasks_to_process(const thread_context& context)
 {
 	return context.processing_idx < context.processing_tasks.size();
@@ -247,6 +272,13 @@ thread::id get_main_id()
 	return global_state.main_id;
 }
 
+void notify(thread::id id)
+{
+	invoke(id, []() {});
+}
+
+namespace detail
+{
 // this function exists to avoid extra moves of the functor
 // via the run_or_invoke
 void invoke_impl(thread::id id, task& f)
@@ -275,34 +307,10 @@ void invoke_impl(thread::id id, task& f)
 
 	lock.unlock();
 
-	context->tasks.emplace_back(std::move(f));
+	context->tasks.emplace_back([f = capture(f)]() { f.get()(); });
 	context->wakeup = true;
 	context->wakeup_event.notify_all();
 }
-
-void invoke(thread::id id, task f)
-{
-	invoke_impl(id, f);
-}
-
-void run_or_invoke(thread::id id, task func)
-{
-	if(this_thread::get_id() == id)
-	{
-		if(func)
-		{
-			func();
-		}
-	}
-	else
-	{
-		invoke_impl(id, func);
-	}
-}
-
-void notify(thread::id id)
-{
-	invoke(id, []() {});
 }
 
 namespace this_thread
@@ -339,7 +347,7 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 	return false;
 }
 
-void process_all(std::unique_lock<std::mutex>& lock)
+void process_all(std::unique_lock<std::mutex>& lock, const std::chrono::nanoseconds& rtime)
 {
 	if(!has_local_context())
 	{
@@ -350,7 +358,10 @@ void process_all(std::unique_lock<std::mutex>& lock)
 	}
 	auto& local_context = get_local_context();
 
-	while(prepare_tasks(local_context))
+	auto now = clock::now();
+	auto end_time = now + rtime;
+
+	while(now < end_time && prepare_tasks(local_context))
 	{
 		auto& processing_tasks = local_context.processing_tasks;
 		auto& idx = local_context.processing_idx;
@@ -365,7 +376,25 @@ void process_all(std::unique_lock<std::mutex>& lock)
 		}
 
 		lock.lock();
+
+		now = clock::now();
 	}
+}
+
+void process_for(const std::chrono::nanoseconds& rtime)
+{
+	if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_and_link");
+		return;
+	}
+	auto& local_context = get_local_context();
+
+	std::unique_lock<std::mutex> lock(local_context.tasks_mutex);
+
+	process_all(lock, rtime);
 }
 
 std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
@@ -469,18 +498,7 @@ bool notified_for_exit()
 
 void process()
 {
-	if(!has_local_context())
-	{
-		log_error_func("Calling functions in the this_thread namespace "
-					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
-		return;
-	}
-	auto& local_context = get_local_context();
-
-	std::unique_lock<std::mutex> lock(local_context.tasks_mutex);
-
-	detail::process_all(lock);
+	detail::process_for(std::chrono::nanoseconds::max());
 }
 
 void wait()
@@ -507,9 +525,9 @@ bool is_main_thread()
 }
 } // namespace this_thread
 
-shared_thread run_thread(const std::string& name)
+thread make_thread(const std::string& name)
 {
-	auto th = std::make_shared<itc::thread>([]() {
+	itc::thread th([]() {
 		this_thread::register_this_thread();
 
 		while(!this_thread::notified_for_exit())
@@ -520,9 +538,14 @@ shared_thread run_thread(const std::string& name)
 		this_thread::unregister_this_thread();
 	});
 
-	name_thread(*th, name);
+	name_thread(th, name);
 
 	return th;
+}
+
+shared_thread make_shared_thread(const std::string& name)
+{
+	return std::make_shared<thread>(make_thread(name));
 }
 
 thread::id thread::get_id() const
@@ -548,4 +571,5 @@ thread::~thread()
 		join();
 	}
 }
+
 } // namespace itc
