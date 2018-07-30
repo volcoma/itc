@@ -6,7 +6,7 @@
 
 namespace future_promise_tests
 {
-
+using namespace std::chrono_literals;
 void run_tests(int iterations)
 {
 	auto thread = itc::make_thread();
@@ -17,17 +17,16 @@ void run_tests(int iterations)
 		itc::promise<int> prom;
 		auto fut = prom.get_future();
 
-		auto p = itc::capture(prom);
-		itc::invoke(th_id, [p, i]() mutable {
+		itc::invoke(th_id, [p = std::move(prom), i]() mutable {
 			sout() << "start working"
 				   << "\n";
-			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
+			itc::this_thread::sleep_for(20ms);
 			sout() << "setting promise value for " << i << "\n";
 
-			p.get().set_value(5);
+			p.set_value(5);
 		});
 		sout() << "waiting on future for " << i << "\n";
-		fut.wait_for(std::chrono::milliseconds(10));
+		fut.wait_for(10ms);
 
 		auto val0 = fut.get();
 
@@ -44,21 +43,20 @@ void run_tests(int iterations)
 		itc::promise<int> prom;
 		auto fut = prom.get_future().share();
 
-		auto p = itc::capture(prom);
-		itc::invoke(th_id, [p, i]() mutable {
+		itc::invoke(th_id, [p = std::move(prom), i]() mutable {
 			sout() << "th1 start working for " << i << "\n";
-			itc::this_thread::sleep_for(std::chrono::milliseconds(20));
+			itc::this_thread::sleep_for(20ms);
 			sout() << "th1 setting promise value for " << i << "\n";
 
-			p.get().set_value(12);
+			p.set_value(12);
 		});
 		itc::invoke(th_id2, [fut, i]() mutable {
 			sout() << "th2 waiting on shared_future for " << i << "\n";
-			fut.wait_for(std::chrono::milliseconds(20));
+			fut.wait_for(20ms);
 			sout() << "th2 woke up on shared_future for " << i << "\n";
 		});
 		sout() << "th0 waiting on shared_future for " << i << "\n";
-		fut.wait_for(std::chrono::milliseconds(10));
+		fut.wait_for(10ms);
 
 		auto val0 = fut.get();
 

@@ -7,6 +7,7 @@
 
 namespace cv_tests
 {
+using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
@@ -21,7 +22,7 @@ void run_tests(int iterations)
 		itc::invoke(th1.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
-			auto res = cv->wait_for(lock, std::chrono::milliseconds(50));
+			auto res = cv->wait_for(lock, 50ms);
 			if(res == std::cv_status::no_timeout)
 			{
 				sout() << "th1 cv notified " << i << "\n";
@@ -35,7 +36,7 @@ void run_tests(int iterations)
 		itc::invoke(th2.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
-			auto res = cv->wait_for(lock, std::chrono::milliseconds(100));
+			auto res = cv->wait_for(lock, 100ms);
 			if(res == std::cv_status::no_timeout)
 			{
 				sout() << "th2 cv notified " << i << "\n";
@@ -45,7 +46,7 @@ void run_tests(int iterations)
 				sout() << "th2 cv timed out " << i << "\n";
 			}
 		});
-		std::this_thread::sleep_for(std::chrono::milliseconds(60));
+		std::this_thread::sleep_for(60ms);
 		cv->notify_all();
 	}
 }

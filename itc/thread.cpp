@@ -37,22 +37,19 @@ struct shared_data
 	init_data utilities;
 };
 
-static shared_data global_state;
-static thread_local thread_context* local_context_ptr = nullptr;
-
 #define log_info_func(msg) log_info("[itc::" + std::string(__func__) + "] : " + msg)
 #define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + msg)
 
+static shared_data global_state;
+static thread_local thread_context* local_context_ptr = nullptr;
 void set_local_context(thread_context* context)
 {
 	local_context_ptr = context;
 }
-
 bool has_local_context()
 {
 	return !(local_context_ptr == nullptr);
 }
-
 thread_context& get_local_context()
 {
 	return *local_context_ptr;
@@ -146,7 +143,7 @@ void unregister_thread_impl(thread::id id)
 
 void init(const init_data& data)
 {
-	itc::this_thread::register_this_thread();
+	this_thread::register_this_thread();
 
 	std::unique_lock<std::mutex> lock(global_state.mutex);
 	if(global_state.main_id != invalid_id())
@@ -163,7 +160,7 @@ void init(const init_data& data)
 
 void shutdown(const std::chrono::seconds& timeout)
 {
-	itc::this_thread::unregister_this_thread();
+	this_thread::unregister_this_thread();
 
 	log_info_func("Notifying and waiting for threads to complete.");
 
@@ -527,7 +524,7 @@ bool is_main_thread()
 
 thread make_thread(const std::string& name)
 {
-	itc::thread th([]() {
+	thread t([]() {
 		this_thread::register_this_thread();
 
 		while(!this_thread::notified_for_exit())
@@ -538,9 +535,9 @@ thread make_thread(const std::string& name)
 		this_thread::unregister_this_thread();
 	});
 
-	name_thread(th, name);
+	name_thread(t, name);
 
-	return th;
+	return t;
 }
 
 shared_thread make_shared_thread(const std::string& name)
