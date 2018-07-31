@@ -55,6 +55,14 @@ private:
 	id id_ = 0;
 };
 
+//-----------------------------------------------------------------------------
+/// Gets an invalid thread::id
+//-----------------------------------------------------------------------------
+constexpr inline thread::id invalid_id()
+{
+	return 0;
+}
+
 using shared_thread = std::shared_ptr<thread>;
 using task = std::function<void()>;
 using clock = std::chrono::steady_clock;
@@ -65,17 +73,6 @@ struct init_data
 	std::function<void(const std::string&)> log_error;
 	std::function<void(std::thread&, const std::string&)> set_thread_name;
 };
-
-template <typename F, typename... Args>
-using callable_ret_type = std::result_of_t<std::decay_t<F>(Args...)>;
-
-//-----------------------------------------------------------------------------
-/// Gets an invalid thread::id
-//-----------------------------------------------------------------------------
-constexpr inline thread::id invalid_id()
-{
-	return 0;
-}
 
 //-----------------------------------------------------------------------------
 /// Inits the itc with user provided utility callbacks
@@ -110,8 +107,8 @@ template <typename F, typename... Args>
 void invoke(thread::id id, F&& f, Args&&... args);
 
 //-----------------------------------------------------------------------------
-/// If the thread is the current one then execute the task directly
-/// else behave like invoke.
+/// If the calling thread is the same as the one passed it then
+/// execute the task directly, else behave like invoke.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 void run_or_invoke(thread::id id, F&& f, Args&&... args);
@@ -138,8 +135,17 @@ thread::id register_thread(std::thread::id id);
 /// invoked into.
 //-----------------------------------------------------------------------------
 thread make_thread(const std::string& name = "");
+
+//-----------------------------------------------------------------------------
+/// Automatically register and run a thread with a prepared loop ready to be
+/// invoked into.
+//-----------------------------------------------------------------------------
 shared_thread make_shared_thread(const std::string& name = "");
 
+//-----------------------------------------------------------------------------
+/// this_thread namespace describe actions you can do
+/// while inside a thread's context
+//-----------------------------------------------------------------------------
 namespace this_thread
 {
 //-----------------------------------------------------------------------------
@@ -158,6 +164,11 @@ void unregister_this_thread();
 bool notified_for_exit();
 
 //-----------------------------------------------------------------------------
+/// Gets the current thread id. Returns invalid id if not registered.
+//-----------------------------------------------------------------------------
+thread::id get_id();
+
+//-----------------------------------------------------------------------------
 /// Process all tasks.
 //-----------------------------------------------------------------------------
 void process();
@@ -167,16 +178,6 @@ void process();
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
 void process_for(const std::chrono::duration<Rep, Period>& rtime);
-
-//-----------------------------------------------------------------------------
-/// Gets the current thread id. Returns invalid id if not registered.
-//-----------------------------------------------------------------------------
-thread::id get_id();
-
-//-----------------------------------------------------------------------------
-/// Check is this thread the main thread
-//-----------------------------------------------------------------------------
-bool is_main_thread();
 
 //-----------------------------------------------------------------------------
 /// Blocks until notified with an event and process it.
@@ -216,6 +217,11 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 //-----------------------------------------------------------------------------
 template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
+
+//-----------------------------------------------------------------------------
+/// Check is this thread the main thread
+//-----------------------------------------------------------------------------
+bool is_main_thread();
 } // namespace this_thread
 } // namespace itc
 
