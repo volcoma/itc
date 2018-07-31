@@ -639,13 +639,13 @@ auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Arg
 
 template <typename T>
 template <typename F>
-auto future<T>::then(thread::id id, std::launch policy, F&& func) -> future<then_ret_type<F, future<T>>>
+auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
 {
 	detail::check_state(this->state_);
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(f), state]() {
 		future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
@@ -667,14 +667,14 @@ auto future<T>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<T>>
 
 template <typename T>
 template <typename F>
-auto shared_future<T>::then(thread::id id, std::launch policy, F&& func) const
+auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<T>>>
 {
 	detail::check_state(this->state_);
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(f), state]() {
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
@@ -695,13 +695,13 @@ auto shared_future<T>::then(thread::id id, F&& f) const -> future<then_ret_type<
 }
 
 template <typename F>
-auto future<void>::then(thread::id id, std::launch policy, F&& func) -> future<then_ret_type<F, future<void>>>
+auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
 {
 	detail::check_state(this->state_);
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(f), state]() {
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
@@ -721,14 +721,14 @@ auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<
 }
 
 template <typename F>
-auto shared_future<void>::then(thread::id id, std::launch policy, F&& func) const
+auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<void>>>
 {
 	detail::check_state(this->state_);
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([f = std::forward<F>(func), state]() {
+	auto package = detail::package_task([f = std::forward<F>(f), state]() {
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});

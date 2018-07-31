@@ -6,7 +6,7 @@
 namespace itc
 {
 template <typename... Args>
-inline void ignore(Args&&...)
+inline void ignore(Args&&... /*unused*/)
 {
 }
 namespace utility

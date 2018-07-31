@@ -156,16 +156,14 @@ struct future_state : public basic_state<T>
 		{
 			return *value;
 		}
+
+		if(this->exception)
+		{
+			std::rethrow_exception(this->exception);
+		}
 		else
 		{
-			if(this->exception)
-			{
-				std::rethrow_exception(this->exception);
-			}
-			else
-			{
-				throw std::future_error(std::future_errc::broken_promise);
-			}
+			throw std::future_error(std::future_errc::broken_promise);
 		}
 	}
 };

@@ -12,7 +12,7 @@ namespace detail
  * apply implemented as per the C++17 standard specification.
  */
 template <typename F, typename T, std::size_t... I>
-constexpr inline decltype(auto) apply(F&& f, T&& t, std::index_sequence<I...>)
+constexpr inline decltype(auto) apply(F&& f, T&& t, std::index_sequence<I...> /*unused*/)
 {
 	ignore(t);
 	return itc::utility::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);

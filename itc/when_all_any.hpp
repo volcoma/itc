@@ -45,11 +45,11 @@ template <typename InputIt>
 auto when_any(InputIt first, InputIt last)
 	-> future<when_any_result<std::vector<typename std::iterator_traits<InputIt>::value_type>>>;
 
-template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...> const& tup, size_t idx, F&& fun);
-
-template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun);
+//-----------------------------------------------------------------------------
+/// A facility to access a tuple's elements by runtime index
+//-----------------------------------------------------------------------------
+template <typename Tuple, typename F>
+void visit_at(Tuple&& tup, size_t idx, F&& f);
 
 //-----------------------------------------------------------------------------
 /// IMPLEMENTATION
@@ -95,13 +95,13 @@ template <size_t S>
 struct when_any_helper_struct<S, S>
 {
 	template <typename Context, typename... Futures>
-	static void apply(const Context&, std::tuple<Futures...>&)
+	static void apply(const Context& /*unused*/, std::tuple<Futures...>& /*unused*/)
 	{
 	}
 };
 
 template <size_t I, typename Context>
-void fill_result_helper(const Context&)
+void fill_result_helper(const Context& /*unused*/)
 {
 }
 
@@ -135,12 +135,14 @@ void when_inner_helper(Context context, Future&& f)
 		++context->ready_futures;
 		std::get<I>(context->result) = std::move(f);
 		if(context->ready_futures == context->total_futures)
+		{
 			context->p.set_value(std::move(context->result));
+		}
 	});
 }
 
 template <size_t I, typename Context>
-void apply_helper(const Context&)
+void apply_helper(const Context& /* ctx*/)
 {
 }
 
@@ -155,7 +157,7 @@ template <size_t I>
 struct visit_impl
 {
 	template <typename T, typename F>
-	static void visit(T& tup, size_t idx, F&& fun)
+	static void visit(T&& tup, size_t idx, F&& fun)
 	{
 		if(idx == I - 1)
 		{
@@ -172,7 +174,7 @@ template <>
 struct visit_impl<0>
 {
 	template <typename T, typename F>
-	static void visit(T&, size_t, F&&)
+	static void visit(T&& /*unused*/, size_t /*unused*/, F&& /*unused*/)
 	{
 		throw std::runtime_error("bad field index");
 	}
@@ -205,12 +207,12 @@ auto when_all(InputIt first, InputIt last)
 		shared_context->result.emplace_back(std::move(*first));
 		shared_context->result[index].then(
 			[shared_context, index](typename std::iterator_traits<InputIt>::value_type f) mutable {
+				std::lock_guard<std::mutex> lock(shared_context->mutex);
+				shared_context->result[index] = std::move(f);
+				++shared_context->ready_futures;
+				if(shared_context->ready_futures == shared_context->total_futures)
 				{
-					std::lock_guard<std::mutex> lock(shared_context->mutex);
-					shared_context->result[index] = std::move(f);
-					++shared_context->ready_futures;
-					if(shared_context->ready_futures == shared_context->total_futures)
-						shared_context->p.set_value(std::move(shared_context->result));
+					shared_context->p.set_value(std::move(shared_context->result));
 				}
 			});
 	}
@@ -272,21 +274,20 @@ auto when_any(InputIt first, InputIt last)
 	{
 		shared_context->result.futures[index].then(
 			id, [shared_context, index](typename std::iterator_traits<InputIt>::value_type f) mutable {
+
+				std::lock_guard<std::mutex> lock(shared_context->mutex);
+				if(!shared_context->ready)
 				{
-					std::lock_guard<std::mutex> lock(shared_context->mutex);
-					if(!shared_context->ready)
+					shared_context->result.index = index;
+					shared_context->ready = true;
+					shared_context->result.futures[index] = std::move(f);
+					if(shared_context->processed == shared_context->total && !shared_context->result_moved)
 					{
-						shared_context->result.index = index;
-						shared_context->ready = true;
-						shared_context->result.futures[index] = std::move(f);
-						if(shared_context->processed == shared_context->total &&
-						   !shared_context->result_moved)
-						{
-							shared_context->p.set_value(std::move(shared_context->result));
-							shared_context->result_moved = true;
-						}
+						shared_context->p.set_value(std::move(shared_context->result));
+						shared_context->result_moved = true;
 					}
 				}
+
 			});
 		++shared_context->processed;
 	}
@@ -338,15 +339,10 @@ auto when_any(Futures&&... futures) -> future<when_any_result<std::tuple<std::de
 	return shared_context->p.get_future();
 }
 
-template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...> const& tup, size_t idx, F&& fun)
+template <typename Tuple, typename F>
+void visit_at(Tuple&& tup, size_t idx, F&& f)
 {
-	detail::visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
+	detail::visit_impl<std::tuple_size<std::decay_t<Tuple>>::value>::visit(tup, idx, std::forward<F>(f));
 }
 
-template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun)
-{
-	detail::visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
-}
 } // namespace itc
