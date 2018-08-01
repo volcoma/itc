@@ -567,15 +567,16 @@ std::enable_if_t<std::is_same<T, void>::value> safe_call(promise<T>& p, F&& f, A
 	utility::apply(std::forward<F>(f), std::forward<Args>(args));
 	p.set_value();
 }
+
 template <typename T>
 struct packaged_task
 {
-	task func;
-	future<T> fut;
+	future<T> future;
+	task callable;
 };
 
 template <typename F, typename... Args>
-auto package_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, Args...>>
+auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, Args...>>
 {
 	using return_type = async_ret_type<F, Args...>;
 	auto prom = promise<return_type>();
@@ -584,8 +585,7 @@ auto package_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, A
 	auto f = capture(std::forward<F>(func));
 	auto p = capture(prom);
 	auto params = capture_pack(std::forward<Args>(args)...);
-
-	return {[f, p, params]() mutable {
+	return {std::move(fut), [f, p, params]() mutable {
 				try
 				{
 					detail::safe_call(p.get(), f.get(), params.get());
@@ -601,19 +601,32 @@ auto package_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, A
 					{
 					} // set_exception() may throw too
 				}
-			},
-			std::move(fut)};
+			}};
 }
 
 inline void launch(thread::id id, std::launch policy, task& func)
 {
+
+	// Here we are not using invoke/run_or_invoke
+	// directly so that we can avoid repackaging again
+	// thus avoinding extra moves/copies
 	if(policy == std::launch::async)
 	{
-		invoke(id, std::move(func));
+		// invoke(id, func);
+		detail::invoke_packaged_task(id, func);
 	}
 	else
 	{
-		run_or_invoke(id, std::move(func));
+		// run_or_invoke(id, func);
+		if(this_thread::get_id() == id)
+		{
+			// directly call it
+			utility::invoke(func);
+		}
+		else
+		{
+			detail::invoke_packaged_task(id, func);
+		}
 	}
 }
 }
@@ -621,9 +634,9 @@ inline void launch(thread::id id, std::launch policy, task& func)
 template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
-	auto package = detail::package_task(std::forward<F>(f), std::forward<Args>(args)...);
-	auto& future = package.fut;
-	auto& task = package.func;
+	auto package = detail::package_future_task(std::forward<F>(f), std::forward<Args>(args)...);
+	auto& future = package.future;
+	auto& task = package.callable;
 
 	detail::launch(id, policy, task);
 
@@ -645,12 +658,12 @@ auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_re
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([f = std::forward<F>(f), state]() {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() {
 		future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.fut;
-	auto& task = package.func;
+	auto& future = package.future;
+	auto& task = package.callable;
 
 	state->set_continuation(
 		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
@@ -674,12 +687,12 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([f = std::forward<F>(f), state]() {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() {
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
-	auto& future = package.fut;
-	auto& task = package.func;
+	auto& future = package.future;
+	auto& task = package.callable;
 
 	state->set_continuation(
 		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
@@ -701,12 +714,12 @@ auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_task([f = std::forward<F>(f), state]() {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() {
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.fut;
-	auto& task = package.func;
+	auto& future = package.future;
+	auto& task = package.callable;
 
 	state->set_continuation(
 		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
@@ -728,12 +741,12 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_task([f = std::forward<F>(f), state]() {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() {
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
-	auto& future = package.fut;
-	auto& task = package.func;
+	auto& future = package.future;
+	auto& task = package.callable;
 
 	state->set_continuation(
 		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });

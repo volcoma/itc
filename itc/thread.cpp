@@ -107,7 +107,7 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 	}
 
 	auto context = std::make_shared<thread_context>();
-
+	context->tasks.reserve(16);
 	context->native_thread_id = native_thread_id;
 	context->id = id;
 	global_state.id_map[native_thread_id] = id;
@@ -264,7 +264,7 @@ thread::id register_thread(std::thread::id id)
 	return ctx->id;
 }
 
-thread::id get_main_id()
+thread::id main_id()
 {
 	return global_state.main_id;
 }
@@ -278,7 +278,7 @@ namespace detail
 {
 // this function exists to avoid extra moves of the functor
 // via the run_or_invoke
-void invoke_impl(thread::id id, task& f)
+void invoke_packaged_task(thread::id id, task& f)
 {
 	if(f == nullptr)
 	{
@@ -304,7 +304,7 @@ void invoke_impl(thread::id id, task& f)
 
 	lock.unlock();
 
-	context->tasks.emplace_back([f = capture(f)]() { f.get()(); });
+	context->tasks.emplace_back(std::move(f));
 	context->wakeup = true;
 	context->wakeup_event.notify_all();
 }
@@ -516,9 +516,9 @@ thread::id get_id()
 	return local_context.id;
 }
 
-bool is_main_thread()
+bool is_main()
 {
-	return this_thread::get_id() == get_main_id();
+	return this_thread::get_id() == main_id();
 }
 } // namespace this_thread
 

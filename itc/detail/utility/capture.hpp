@@ -25,7 +25,10 @@ public:
 		: value_(std::move(other.value_))
 	{
 	}
-
+    move_on_copy_t(move_on_copy_t&& other) noexcept
+		: value_(std::move(other.value_))
+	{
+	}
 	const T& get() const
 	{
 		return value_;
@@ -40,7 +43,7 @@ private:
 };
 
 template <typename T>
-move_on_copy_t<std::decay_t<T>> capture(T&& value)
+move_on_copy_t<std::decay_t<T>> capture(T&& value) noexcept
 {
 	return {std::forward<T>(value)};
 }
@@ -61,7 +64,10 @@ public:
 		: value_(std::move(other.value_))
 	{
 	}
-
+    move_on_copy_pack_t(move_on_copy_pack_t&& other) noexcept
+		: value_(std::move(other.value_))
+	{
+	}
 	const T& get() const
 	{
 		return value_;
@@ -76,7 +82,7 @@ private:
 };
 
 template <typename... T>
-move_on_copy_pack_t<T...> capture_pack(T&&... value)
+move_on_copy_pack_t<T...> capture_pack(T&&... value) noexcept
 {
 	return {std::forward<T>(value)...};
 }

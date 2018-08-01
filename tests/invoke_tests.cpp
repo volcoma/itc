@@ -7,14 +7,16 @@
 namespace invoke_tests
 {
 
-itc::thread::id create_detached_thread(int id)
+itc::thread::id create_detached_thread()
 {
-	itc::thread th([id]() {
+	itc::thread th([]() {
 		itc::this_thread::register_this_thread();
+
+		auto id = itc::this_thread::get_id();
 
 		while(!itc::this_thread::notified_for_exit())
 		{
-			itc::notify(itc::get_main_id());
+			itc::notify(itc::main_id());
 
 			sout() << "th" << id << " detached thread waiting ..."
 				   << "\n";
@@ -33,13 +35,16 @@ itc::thread::id create_detached_thread(int id)
 	return th.get_id();
 }
 
-itc::thread create_shared_thread(int id)
+itc::thread create_thread()
 {
 	auto th = itc::make_thread();
-	itc::invoke(th.get_id(), [id]() {
+	itc::invoke(th.get_id(), []() {
+
+		auto id = itc::this_thread::get_id();
+
 		while(!itc::this_thread::notified_for_exit())
 		{
-			itc::notify(itc::get_main_id());
+			itc::notify(itc::main_id());
 
 			sout() << "th" << id << " shared thread waiting ..."
 				   << "\n";
@@ -56,12 +61,12 @@ itc::thread create_shared_thread(int id)
 
 void run_tests(int iterations)
 {
-	auto th1 = create_detached_thread(1);
-	auto th1_sh = create_shared_thread(2);
+	auto th1 = create_detached_thread();
+	auto th1_sh = create_thread();
 	auto th11 = th1_sh.get_id();
 
-	auto th2 = create_detached_thread(3);
-	auto th2_sh = create_shared_thread(4);
+	auto th2 = create_detached_thread();
+	auto th2_sh = create_thread();
 	auto th22 = th2_sh.get_id();
 
 	auto all_threads = itc::get_all_registered_threads();

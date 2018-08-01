@@ -98,7 +98,7 @@ std::size_t get_pending_task_count(thread::id id);
 //-----------------------------------------------------------------------------
 /// Retrieves the main thread id.
 //-----------------------------------------------------------------------------
-thread::id get_main_id();
+thread::id main_id();
 
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
@@ -221,7 +221,7 @@ void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 //-----------------------------------------------------------------------------
 /// Check is this thread the main thread
 //-----------------------------------------------------------------------------
-bool is_main_thread();
+bool is_main();
 } // namespace this_thread
 } // namespace itc
 
@@ -233,37 +233,40 @@ namespace itc
 namespace detail
 {
 template <typename F, typename... Args>
-auto apply_type_erasure(F&& func, Args&&... args) -> task
+auto package_simple_task(F&& func, Args&&... args) -> task
 {
 	auto f = capture(std::forward<F>(func));
 	auto params = capture_pack(std::forward<Args>(args)...);
 
 	return [f, params]() mutable { utility::apply(f.get(), params.get()); };
 }
-void invoke_impl(thread::id id, task& f);
+void invoke_packaged_task(thread::id id, task& f);
 }
 
+// apply perfect forwarding to the callable and arguments
+// so that so that using invoke/run_or_invoke will result
+// in the same number of calls to constructors
 template <typename F, typename... Args>
 void invoke(thread::id id, F&& f, Args&&... args)
 {
-	auto task = detail::apply_type_erasure(std::forward<F>(f), std::forward<Args>(args)...);
-	detail::invoke_impl(id, task);
+	auto task = detail::package_simple_task(std::forward<F>(f), std::forward<Args>(args)...);
+	detail::invoke_packaged_task(id, task);
 }
 
+// apply perfect forwarding to the callable and arguments
+// so that so that using invoke/run_or_invoke will result
+// in the same number of calls to constructors
 template <typename F, typename... Args>
 void run_or_invoke(thread::id id, F&& f, Args&&... args)
 {
-	auto task = detail::apply_type_erasure(std::forward<F>(f), std::forward<Args>(args)...);
 	if(this_thread::get_id() == id)
 	{
-		if(task)
-		{
-			task();
-		}
+		// directly call it
+		utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
 	}
 	else
 	{
-		detail::invoke_impl(id, task);
+		invoke(id, std::forward<F>(f), std::forward<Args>(args)...);
 	}
 }
 
