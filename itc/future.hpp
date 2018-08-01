@@ -621,7 +621,7 @@ inline void launch(thread::id id, std::launch policy, task& func)
 		if(this_thread::get_id() == id)
 		{
 			// directly call it
-			utility::invoke(func);
+			func();
 		}
 		else
 		{
