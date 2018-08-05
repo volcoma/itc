@@ -3,6 +3,7 @@
 project (itc)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utility")
 
 option(BUILD_ITC_SHARED "Build as a shared library." ON)
 option(BUILD_ITC_TESTS "Build the tests" ON)
