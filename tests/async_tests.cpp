@@ -54,25 +54,25 @@ void run_tests(int iterations)
                 auto chain = future.then(th1_id, [u = std::move(up)](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain then " << "\n";
+                    sout() << "chain then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain then " << "\n";
+                    sout() << "chain then " << result << "\n";
                     return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain then " << "\n";
+                    sout() << "chain then " << result << "\n";
                     return result;
                 });
 
                 try
                 {
-                    sout() << "wait on chain" << "\n";
+                    sout() << "wait on chain\n";
                     auto result = chain.get();
                     sout() << "woke up on chain with result " << result << "\n";
                 }
@@ -87,19 +87,19 @@ void run_tests(int iterations)
                 auto chain0 = shared_future.then(th1_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 0.1 then " << "\n";
+                    sout() << "chain 0.1 then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
-                        auto result = parent.get();
-                        sout() << "chain 0.2 then " << "\n";
-                        return result;
+                    auto result = parent.get();
+                    sout() << "chain 0.2 then " << result << "\n";
+                    return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 0.3 then " << "\n";
+                    sout() << "chain 0.3 then " << result << "\n";
                     return result;
                 });
 
@@ -107,19 +107,19 @@ void run_tests(int iterations)
                 auto chain1 = shared_future.then(th1_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 1.1 then " << "\n";
+                    sout() << "chain 1.1 then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 1.2 then " << "\n";
+                    sout() << "chain 1.2 then " << result << "\n";
                     return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 1.3 then " << "\n";
+                    sout() << "chain 1.3 then " << result << "\n";
                     return result;
                 });
 
@@ -127,57 +127,57 @@ void run_tests(int iterations)
                 auto chain2 = shared_future.then(th1_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 2.1 then " << "\n";
+                    sout() << "chain 2.1 then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 2.2 then " << "\n";
+                    sout() << "chain 2.2 then " << result << "\n";
                     return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 2.3 then " << "\n";
+                    sout() << "chain 2.3 then " << result << "\n";
                     return result;
                 });
 
                 auto chain3 = shared_future.then(th1_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 3.1 then " << "\n";
+                    sout() << "chain 3.1 then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 3.2 then " << "\n";
+                    sout() << "chain 3.2 then " << result << "\n";
                     return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 3.3 then " << "\n";
+                    sout() << "chain 3.3 then " << result << "\n";
                     return result;
                 });
 
                 auto chain4 = shared_future.then(th1_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 4.1 then " << "\n";
+                    sout() << "chain 4.1 then " << result << "\n";
                     return result;
                 })
                 .then(this_th_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 4.2 then " << "\n";
+                    sout() << "chain 4.2 then " << result << "\n";
                     return result;
                 })
                 .then(th2_id, [](auto parent)
                 {
                     auto result = parent.get();
-                    sout() << "chain 4.3 then " << "\n";
+                    sout() << "chain 4.3 then " << result << "\n";
                     return result;
                 });
 
@@ -187,8 +187,7 @@ void run_tests(int iterations)
                 itc::when_all(chain0, chain1).then(this_th_id, [](auto parent)
                 {
                     auto chains = parent.get();
-                    //auto index = chains.index;
-                    //
+                    
                     auto chain0 = std::move(std::get<0>(chains));
                     auto chain1 = std::move(std::get<1>(chains));
 
@@ -234,7 +233,7 @@ void run_tests(int iterations)
                 // Wait for the rest of the chains
                 try
                 {
-                    sout() << "wait on chain 4" << "\n";
+                    sout() << "wait on chain 4\n";
                     auto result = chain4.get();
                     sout() << "woke up on chain 3 with result " << result << "\n";
                 }
@@ -249,8 +248,7 @@ void run_tests(int iterations)
 		// clang-format on
 
 		sout() << "future woke up for" << i << "\n";
-		sout() << "ASYNC TEST " << i << " completed"
-			   << "\n";
+		sout() << "ASYNC TEST " << i << " completed\n";
 	}
 }
 } // namespace async_tests
