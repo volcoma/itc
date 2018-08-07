@@ -274,14 +274,14 @@ namespace this_thread
 {
 namespace detail
 {
-std::cv_status wait_for(const std::chrono::nanoseconds& rtime);
-void process_for(const std::chrono::nanoseconds& rtime);
+std::cv_status wait_for(const std::chrono::microseconds& rtime);
+void process_for(const std::chrono::microseconds& rtime);
 }
 
 template <typename Rep, typename Period>
 void process_for(const std::chrono::duration<Rep, Period>& rtime)
 {
-	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(rtime);
 	detail::process_for(duration);
 }
 
@@ -293,7 +293,7 @@ inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)
 		return std::cv_status::no_timeout;
 	}
 
-	auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(rtime);
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(rtime);
 
 	return detail::wait_for(duration);
 }

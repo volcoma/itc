@@ -344,7 +344,7 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 	return false;
 }
 
-void process_all(std::unique_lock<std::mutex>& lock, const std::chrono::nanoseconds& rtime)
+void process_all_for(std::unique_lock<std::mutex>& lock, const std::chrono::microseconds& rtime)
 {
 	if(!has_local_context())
 	{
@@ -378,7 +378,36 @@ void process_all(std::unique_lock<std::mutex>& lock, const std::chrono::nanoseco
 	}
 }
 
-void process_for(const std::chrono::nanoseconds& rtime)
+void process_all(std::unique_lock<std::mutex>& lock)
+{
+	if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_and_link");
+		return;
+	}
+	auto& local_context = get_local_context();
+
+	while(prepare_tasks(local_context))
+	{
+		auto& processing_tasks = local_context.processing_tasks;
+		auto& idx = local_context.processing_idx;
+		auto task = std::move(processing_tasks[idx]);
+		idx++;
+
+		lock.unlock();
+
+		if(task)
+		{
+			task();
+		}
+
+		lock.lock();
+	}
+}
+
+void process_for(const std::chrono::microseconds& rtime)
 {
 	if(!has_local_context())
 	{
@@ -391,10 +420,26 @@ void process_for(const std::chrono::nanoseconds& rtime)
 
 	std::unique_lock<std::mutex> lock(local_context.tasks_mutex);
 
-	process_all(lock, rtime);
+	process_all_for(lock, rtime);
 }
 
-std::cv_status wait_for(const std::chrono::nanoseconds& wait_duration)
+void process()
+{
+	if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_and_link");
+		return;
+	}
+	auto& local_context = get_local_context();
+
+	std::unique_lock<std::mutex> lock(local_context.tasks_mutex);
+
+	process_all(lock);
+}
+
+std::cv_status wait_for(const std::chrono::microseconds& wait_duration)
 {
 	auto status = std::cv_status::no_timeout;
 
@@ -495,7 +540,7 @@ bool notified_for_exit()
 
 void process()
 {
-	detail::process_for(std::chrono::nanoseconds::max());
+	detail::process_for(std::chrono::seconds(100));
 }
 
 void wait()
