@@ -241,7 +241,7 @@ auto package_simple_task(F&& func, Args&&... args) -> task
 	return [f, params]() mutable { utility::apply(f.get(), params.get()); };
 }
 void invoke_packaged_task(thread::id id, task& f);
-}
+} // namespace detail
 
 // apply perfect forwarding to the callable and arguments
 // so that so that using invoke/run_or_invoke will result
@@ -276,7 +276,7 @@ namespace detail
 {
 std::cv_status wait_for(const std::chrono::microseconds& rtime);
 void process_for(const std::chrono::microseconds& rtime);
-}
+} // namespace detail
 
 template <typename Rep, typename Period>
 void process_for(const std::chrono::duration<Rep, Period>& rtime)

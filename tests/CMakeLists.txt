@@ -14,3 +14,6 @@ set_target_properties(tests PROPERTIES
 
 include(target_warning_support)
 set_warning_level(tests ultra)
+
+include(target_code_style_support)
+set_code_style(tests lower_case check_headers "${extra_flags}")

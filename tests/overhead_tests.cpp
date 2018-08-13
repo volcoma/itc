@@ -7,32 +7,6 @@
 namespace overhead_tests
 {
 
-struct Informer
-{
-	Informer()
-	{
-		puts("Informer()");
-	}
-	Informer(const Informer&) = delete;
-	//	{
-	//		puts("Informer(const Informer&)");
-	//	}
-	Informer(Informer&&) noexcept
-	{
-		puts("Informer(Informer&&)");
-	}
-	Informer& operator=(const Informer&) = delete;
-	//	{
-	//		puts("operator=(const Informer&)");
-	//		return *this;
-	//	}
-	Informer& operator=(Informer&&) noexcept
-	{
-		puts("operator=(Informer&&)");
-		return *this;
-	}
-};
-
 void run_tests(int iterations)
 {
 	for(int i = 0; i < iterations; ++i)

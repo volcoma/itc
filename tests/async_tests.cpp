@@ -28,22 +28,22 @@ void run_tests(int iterations)
             // some move only object
             // can pass it by move either to the capture list or as a parameter to async
             std::unique_ptr<int> up;
-            auto future = itc::async(th1_id, [u = std::move(up)](int i) mutable
+            auto future = itc::async(th1_id, [u = std::move(up)](int i)
             {
                 itc::this_thread::sleep_for(20ms);
 
-                if(rand() % 10 > 7)
+                if(i % 10 == 0)
                 {
                     throw std::runtime_error("propagated exception");
                 }
                 return i;
             }, i);
 
-            auto shared_future = itc::async(th2_id, [u = std::move(up)](int i) mutable
+            auto shared_future = itc::async(th2_id, [u = std::move(up)](int i)
             {
                 itc::this_thread::sleep_for(20ms);
 
-                if(rand() % 10 > 7)
+                if(i % 10 == 0)
                 {
                     throw std::runtime_error("propagated exception");
                 }

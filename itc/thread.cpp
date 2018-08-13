@@ -37,8 +37,8 @@ struct shared_data
 	init_data utilities;
 };
 
-#define log_info_func(msg) log_info("[itc::" + std::string(__func__) + "] : " + msg)
-#define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + msg)
+#define log_info_func(msg) log_info("[itc::" + std::string(__func__) + "] : " + (msg))
+#define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + (msg))
 
 static shared_data global_state;
 static thread_local thread_context* local_context_ptr = nullptr;
@@ -308,7 +308,7 @@ void invoke_packaged_task(thread::id id, task& f)
 	context->wakeup = true;
 	context->wakeup_event.notify_all();
 }
-}
+} // namespace detail
 
 namespace this_thread
 {
@@ -502,7 +502,6 @@ void wait()
 	}
 
 	local_context.wakeup = false;
-
 	// guard for spurious wakeups
 	local_context.wakeup_event.wait(lock, [&local_context]() -> bool { return local_context.wakeup; });
 

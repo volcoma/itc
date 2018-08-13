@@ -557,12 +557,12 @@ inline shared_future<void> future<void>::share()
 namespace detail
 {
 template <typename T, typename F, typename Args>
-std::enable_if_t<!std::is_same<T, void>::value> safe_call(promise<T>& p, F&& f, Args&& args)
+std::enable_if_t<!std::is_same<T, void>::value> call(promise<T>& p, F&& f, Args&& args)
 {
 	p.set_value(utility::apply(std::forward<F>(f), std::forward<Args>(args)));
 }
 template <typename T, typename F, typename Args>
-std::enable_if_t<std::is_same<T, void>::value> safe_call(promise<T>& p, F&& f, Args&& args)
+std::enable_if_t<std::is_same<T, void>::value> call(promise<T>& p, F&& f, Args&& args)
 {
 	utility::apply(std::forward<F>(f), std::forward<Args>(args));
 	p.set_value();
@@ -588,7 +588,7 @@ auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_ty
 	return {std::move(fut), [f, p, params]() mutable {
 				try
 				{
-					detail::safe_call(p.get(), f.get(), params.get());
+					detail::call(p.get(), f.get(), params.get());
 				}
 				catch(...)
 				{
@@ -629,7 +629,7 @@ inline void launch(thread::id id, std::launch policy, task& func)
 		}
 	}
 }
-}
+} // namespace detail
 
 template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>

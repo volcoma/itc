@@ -1,62 +1,73 @@
 #include "thread_pool_tests.h"
-#include "thread_pool.h"
+#include "itc/thread_pool.h"
 
 #include "utils.hpp"
 #include <chrono>
 
 namespace thread_pool_tests
 {
-
-struct Informer
-{
-	Informer()
-	{
-		puts("Informer()");
-	}
-	Informer(const Informer&) = delete;
-	//	{
-	//		puts("Informer(const Informer&)");
-	//	}
-	Informer(Informer&&) noexcept
-	{
-		puts("Informer(Informer&&)");
-	}
-	Informer& operator=(const Informer&) = delete;
-	//	{
-	//		puts("operator=(const Informer&)");
-	//		return *this;
-	//	}
-	Informer& operator=(Informer&&) noexcept
-	{
-		puts("operator=(Informer&&)");
-		return *this;
-	}
-};
+using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-    itc::thread_pool pool({2, 1});
+    auto now = itc::clock::now();
+
+	itc::thread_pool pool({{itc::priority::category::normal, 2},
+						   {itc::priority::category::high, 1},
+						   {itc::priority::category::critical, 1}});
+
 	for(int i = 0; i < iterations; ++i)
 	{
-		sout() << "-------------------\n";
-		sout() << "invoke via argument\n";
-		itc::invoke(itc::main_id(), [](const Informer&) {}, Informer{});
-		itc::this_thread::process();
+		for(size_t j = 0; j < 5; ++j)
+		{
+			// clang-format off
+            auto job = pool.schedule(itc::priority::normal(j), [i, j]()
+            {
+                std::this_thread::sleep_for(10ms);
+                sout() << "call normal priority job " << i << " variant : " << j << "\n";
+            });
+//            pool.change_priority(job.id, itc::priority::critical());
 
-		sout() << "-------------------\n";
-		sout() << "invoke via capture\n";
-		itc::invoke(itc::main_id(), [arg = Informer{}](){});
-		itc::this_thread::process();
+//            //job is just a normal shared_future and we can use it like any other
+//            job.then(itc::this_thread::get_id(), [](auto parent)
+//            {
+//                sout() << "job is done\n";
+//            });
+//            pool.wait(job.id);
+//            pool.stop(job.id);
 
-		sout() << "-------------------\n";
-		sout() << "async via argument\n";
-		itc::async(itc::main_id(), std::launch::async, [](const Informer&) {}, Informer{});
-		itc::this_thread::process();
+			// clang-format on
+		}
 
-		sout() << "-------------------\n";
-		sout() << "async via capture\n";
-		itc::async(itc::main_id(), std::launch::async, [arg = Informer{}](){});
-		itc::this_thread::process();
+		for(size_t j = 0; j < 5; ++j)
+		{
+			// clang-format off
+            pool.schedule(itc::priority::high(j), [i, j]()
+            {
+                std::this_thread::sleep_for(10ms);
+                sout() << "call high priority job " << i << " variant : " << j << "\n";
+            });
+			// clang-format on
+		}
+
+		for(size_t j = 0; j < 5; ++j)
+		{
+			// clang-format off
+            pool.schedule(itc::priority::critical(j), [i, j]()
+            {
+                std::this_thread::sleep_for(10ms);
+                sout() << "call critical priority job " << i << " variant : " << j << "\n";
+            });
+			// clang-format on
+		}
 	}
+
+	//pool.stop_all();
+	pool.wait_all();
+
+    auto end = itc::clock::now();
+    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end-now);
+    sout() << dur.count() << "ms\n";
+
 }
-} // namespace overhead
+} // namespace thread_pool_tests

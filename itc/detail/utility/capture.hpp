@@ -25,7 +25,7 @@ public:
 		: value_(std::move(other.value_))
 	{
 	}
-    move_on_copy_t(move_on_copy_t&& other) noexcept
+	move_on_copy_t(move_on_copy_t&& other) noexcept
 		: value_(std::move(other.value_))
 	{
 	}
@@ -64,7 +64,7 @@ public:
 		: value_(std::move(other.value_))
 	{
 	}
-    move_on_copy_pack_t(move_on_copy_pack_t&& other) noexcept
+	move_on_copy_pack_t(move_on_copy_pack_t&& other) noexcept
 		: value_(std::move(other.value_))
 	{
 	}

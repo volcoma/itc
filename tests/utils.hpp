@@ -19,3 +19,23 @@ struct sout
 
     std::stringstream str;
 };
+
+
+struct Informer
+{
+    Informer()
+    {
+        sout() << "Informer()\n";
+    }
+    Informer(Informer&&) noexcept
+    {
+        sout() << "Informer(Informer&&)\n";
+    }
+    Informer& operator=(Informer&&) noexcept
+    {
+        sout() << "operator=(Informer&&)\n";
+        return *this;
+    }
+    Informer(const Informer&) = delete;
+    Informer& operator=(const Informer&) = delete;
+};
