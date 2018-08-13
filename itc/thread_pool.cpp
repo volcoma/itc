@@ -116,7 +116,7 @@ public:
 		jobs_.clear();
 		for(auto& queue : job_priority_queues_)
 		{
-			queue.second = {};
+			queue.second = jobs_queue{};
 		}
 	}
 
