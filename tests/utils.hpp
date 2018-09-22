@@ -6,8 +6,6 @@ struct sout
 {
     ~sout()
     {
-        static std::mutex guard;
-        std::lock_guard<std::mutex> lock(guard);
         std::cout << str.str();
     }
     template<typename T>

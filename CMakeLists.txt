@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utility")
 
 option(BUILD_ITC_SHARED "Build as a shared library." ON)
-option(BUILD_ITC_TESTS "Build the tests" OFF)
+option(BUILD_ITC_TESTS "Build the tests" ON)
 option(BUILD_ITC_WITH_CODE_STYLE_CHECKS "Build with code style checks." OFF)
 
 if(BUILD_ITC_TESTS)

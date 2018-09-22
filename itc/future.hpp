@@ -583,7 +583,7 @@ auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_ty
 	auto fut = prom.get_future();
 
 	auto f = capture(std::forward<F>(func));
-	auto p = capture(prom);
+	auto p = capture(std::move(prom));
 	auto params = capture_pack(std::forward<Args>(args)...);
 	return {std::move(fut), [f, p, params]() mutable {
 				try

@@ -18,7 +18,7 @@ public:
 	{
 	}
 	move_on_copy_t(T& value) noexcept
-		: value_(std::move(value))
+		: value_(value)
 	{
 	}
 	move_on_copy_t(const move_on_copy_t& other) noexcept

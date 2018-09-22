@@ -69,7 +69,7 @@ public:
 
 	job_id add_job(task& user_job, priority::group group)
 	{
-		auto packaged_task = detail::package_future_task(user_job);
+		auto packaged_task = detail::package_future_task(std::move(user_job));
 		std::lock_guard<std::mutex> lock(guard_);
 		auto id = free_id_++;
 		auto& job = jobs_[id];
