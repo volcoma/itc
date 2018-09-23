@@ -588,7 +588,7 @@ auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_ty
 	return {std::move(fut), [f, p, params]() mutable {
 				try
 				{
-					detail::call(p.get(), f.get(), params.get());
+					detail::call(p.get(), f.get(), std::move(params.get()));
 				}
 				catch(...)
 				{

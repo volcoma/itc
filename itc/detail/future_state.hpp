@@ -146,7 +146,7 @@ struct future_state : public basic_state<T>
 			throw std::future_error(std::future_errc::promise_already_satisfied);
 		}
 
-		this->value = std::make_shared<V>(std::forward<V>(val));
+		this->value = std::make_shared<std::decay_t<V>>(std::forward<V>(val));
 		this->set_ready(lock, value_status::ready);
 	}
 
