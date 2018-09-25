@@ -238,7 +238,7 @@ auto package_simple_task(F&& func, Args&&... args) -> task
 	auto f = capture(std::forward<F>(func));
 	auto params = capture_pack(std::forward<Args>(args)...);
 
-	return [f, params]() mutable { utility::apply(f.get(), std::move(params.get())); };
+	return [f, params]() mutable { utility::apply(f.get(), params.get()); };
 }
 bool invoke_packaged_task(thread::id id, task& f);
 } // namespace detail
