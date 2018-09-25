@@ -556,15 +556,17 @@ inline shared_future<void> future<void>::share()
 }
 namespace detail
 {
-template <typename T, typename F, typename Args>
-std::enable_if_t<!std::is_same<T, void>::value> call(promise<T>& p, F&& f, Args&& args)
+template <typename T, typename F, typename Tuple>
+std::enable_if_t<!std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple& params)
 {
-	p.set_value(utility::apply(std::forward<F>(f), std::forward<Args>(args)));
+	p.set_value(utility::apply(
+		[&f](auto&&... args) { return utility::invoke(std::forward<F>(f), std::move(args)...); }, params));
 }
-template <typename T, typename F, typename Args>
-std::enable_if_t<std::is_same<T, void>::value> call(promise<T>& p, F&& f, Args&& args)
+template <typename T, typename F, typename Tuple>
+std::enable_if_t<std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple& params)
 {
-	utility::apply(std::forward<F>(f), std::forward<Args>(args));
+	utility::apply([&f](auto&&... args) { return utility::invoke(std::forward<F>(f), std::move(args)...); },
+				   params);
 	p.set_value();
 }
 
@@ -584,11 +586,11 @@ auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_ty
 
 	auto f = capture(std::forward<F>(func));
 	auto p = capture(std::move(prom));
-	auto params = capture_pack(std::forward<Args>(args)...);
+	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
 	return {std::move(fut), [f, p, params]() mutable {
 				try
 				{
-					detail::call(p.get(), f.get(), params.get());
+					detail::call<Args&&...>(p.get(), f.get(), params.get());
 				}
 				catch(...)
 				{

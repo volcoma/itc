@@ -232,14 +232,22 @@ namespace itc
 {
 namespace detail
 {
-template <typename F, typename... Args>
-auto package_simple_task(F&& func, Args&&... args) -> task
-{
-	auto f = capture(std::forward<F>(func));
-	auto params = capture_pack(std::forward<Args>(args)...);
 
-	return [f, params]() mutable { utility::apply(f.get(), params.get()); };
+template <typename F, typename... Args>
+auto package_simple_task(F&& f, Args&&... args) -> task
+{
+	auto callable = capture(std::forward<F>(f));
+	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
+
+	return [callable, params]() mutable {
+		utility::apply(
+			[&callable](auto&&... args) {
+				utility::invoke(std::forward<F>(callable.get()), std::move(args)...);
+			},
+			params.get());
+	};
 }
+
 bool invoke_packaged_task(thread::id id, task& f);
 } // namespace detail
 
