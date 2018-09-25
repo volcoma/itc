@@ -104,14 +104,14 @@ thread::id main_id();
 /// Queues a task to be executed on the specified thread and notifies it.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-void invoke(thread::id id, F&& f, Args&&... args);
+bool invoke(thread::id id, F&& f, Args&&... args);
 
 //-----------------------------------------------------------------------------
 /// If the calling thread is the same as the one passed it then
 /// execute the task directly, else behave like invoke.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-void run_or_invoke(thread::id id, F&& f, Args&&... args);
+bool run_or_invoke(thread::id id, F&& f, Args&&... args);
 
 //-----------------------------------------------------------------------------
 /// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
@@ -240,33 +240,34 @@ auto package_simple_task(F&& func, Args&&... args) -> task
 
 	return [f, params]() mutable { utility::apply(f.get(), std::move(params.get())); };
 }
-void invoke_packaged_task(thread::id id, task& f);
+bool invoke_packaged_task(thread::id id, task& f);
 } // namespace detail
 
 // apply perfect forwarding to the callable and arguments
 // so that so that using invoke/run_or_invoke will result
 // in the same number of calls to constructors
 template <typename F, typename... Args>
-void invoke(thread::id id, F&& f, Args&&... args)
+bool invoke(thread::id id, F&& f, Args&&... args)
 {
 	auto task = detail::package_simple_task(std::forward<F>(f), std::forward<Args>(args)...);
-	detail::invoke_packaged_task(id, task);
+	return detail::invoke_packaged_task(id, task);
 }
 
 // apply perfect forwarding to the callable and arguments
 // so that so that using invoke/run_or_invoke will result
 // in the same number of calls to constructors
 template <typename F, typename... Args>
-void run_or_invoke(thread::id id, F&& f, Args&&... args)
+bool run_or_invoke(thread::id id, F&& f, Args&&... args)
 {
 	if(this_thread::get_id() == id)
 	{
 		// directly call it
 		utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+		return true;
 	}
 	else
 	{
-		invoke(id, std::forward<F>(f), std::forward<Args>(args)...);
+		return invoke(id, std::forward<F>(f), std::forward<Args>(args)...);
 	}
 }
 

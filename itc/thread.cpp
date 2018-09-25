@@ -278,17 +278,17 @@ namespace detail
 {
 // this function exists to avoid extra moves of the functor
 // via the run_or_invoke
-void invoke_packaged_task(thread::id id, task& f)
+bool invoke_packaged_task(thread::id id, task& f)
 {
 	if(f == nullptr)
 	{
 		log_error_func("Invoking an invalid task.");
-		return;
+		return false;
 	}
 	if(id == invalid_id())
 	{
 		log_error_func("Invoking to an invalid thread.");
-		return;
+		return false;
 	}
 
 	std::unique_lock<std::mutex> lock(global_state.mutex);
@@ -296,7 +296,7 @@ void invoke_packaged_task(thread::id id, task& f)
 	auto it = global_state.contexts.find(id);
 	if(it == global_state.contexts.end())
 	{
-		return;
+		return false;
 	}
 
 	auto context = it->second;
@@ -307,6 +307,7 @@ void invoke_packaged_task(thread::id id, task& f)
 	context->tasks.emplace_back(std::move(f));
 	context->wakeup = true;
 	context->wakeup_event.notify_all();
+	return true;
 }
 } // namespace detail
 
