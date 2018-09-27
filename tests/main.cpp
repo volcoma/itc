@@ -19,7 +19,7 @@ int main()
     data.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
 	itc::init(data);
 
-    overhead_tests::run_tests(5);
+    overhead_tests::run_tests();
     invoke_tests::run_tests(1000);
     cv_tests::run_tests(50);
     future_promise_tests::run_tests(50);

@@ -34,6 +34,15 @@ struct Informer
         sout() << "operator=(Informer&&)\n";
         return *this;
     }
-    Informer(const Informer&) = delete;
-    Informer& operator=(const Informer&) = delete;
+    Informer(const Informer&) noexcept
+    {
+        sout() << "Informer(const Informer&&)\n";
+    }
+    Informer& operator=(const Informer&) noexcept
+    {
+        sout() << "operator=(Informer&&)\n";
+        return *this;
+    }
+//    Informer(const Informer&) = delete;
+//    Informer& operator=(const Informer&) = delete;
 };
