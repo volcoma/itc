@@ -1,25 +1,25 @@
 #pragma once
 
-#include <tuple>
-#include <utility>
 #include <functional>
+#include <tuple>
 #include <type_traits>
 #include <utility>
-
 
 namespace itc
 {
 
-template <typename T>
+template <typename... Args>
 class move_on_copy_t
 {
 public:
 	move_on_copy_t& operator=(const move_on_copy_t& other) = delete;
 	move_on_copy_t& operator=(move_on_copy_t&& other) = delete;
+	using T = decltype(std::make_tuple(std::declval<Args>()...));
 
-	template <typename U, typename = std::enable_if_t<!std::is_same<std::decay_t<U>, move_on_copy_t>::value>>
-	move_on_copy_t(U&& value) noexcept
-		: value_(std::forward<U>(value))
+	template <typename... U, typename = std::enable_if_t<
+								 std::is_same<T, decltype(std::make_tuple(std::declval<U>()...))>::value>>
+	move_on_copy_t(U&&... args) noexcept
+		: value_(std::make_tuple(std::forward<U>(args)...))
 	{
 	}
 
@@ -27,10 +27,7 @@ public:
 		: value_(std::move(other.value_))
 	{
 	}
-	move_on_copy_t(move_on_copy_t&& other) noexcept
-		: value_(std::move(other.value_))
-	{
-	}
+
 	const T& get() const
 	{
 		return value_;
@@ -44,10 +41,9 @@ private:
 	mutable T value_;
 };
 
-template <typename T>
-move_on_copy_t<std::decay_t<T>> capture(T&& value) noexcept
+template <typename... Args>
+move_on_copy_t<Args...> capture(Args&&... args) noexcept
 {
-	return {std::forward<T>(value)};
+	return {std::forward<Args>(args)...};
 }
-
 } // namespace itc

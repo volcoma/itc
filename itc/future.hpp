@@ -556,17 +556,23 @@ inline shared_future<void> future<void>::share()
 }
 namespace detail
 {
-template <typename T, typename F, typename Tuple>
-std::enable_if_t<!std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple& params)
+template <typename... Args, typename T, typename F, typename Tuple>
+std::enable_if_t<!std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
 {
 	p.set_value(utility::apply(
-		[&f](auto&&... args) { return utility::invoke(std::forward<F>(f), std::move(args)...); }, params));
+		[&f](std::decay_t<Args>&... args) {
+			return utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+		},
+		params));
 }
-template <typename T, typename F, typename Tuple>
-std::enable_if_t<std::is_same<T, void>::value> call(promise<T>& p, F&& f, Tuple& params)
+template <typename... Args, typename T, typename F, typename Tuple>
+std::enable_if_t<std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
 {
-	utility::apply([&f](auto&&... args) { return utility::invoke(std::forward<F>(f), std::move(args)...); },
-				   params);
+	utility::apply(
+		[&f](std::decay_t<Args>&... args) {
+			utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+		},
+		params);
 	p.set_value();
 }
 
@@ -578,32 +584,40 @@ struct packaged_task
 };
 
 template <typename F, typename... Args>
-auto package_future_task(F&& func, Args&&... args) -> packaged_task<async_ret_type<F, Args...>>
+packaged_task<async_ret_type<F, Args...>> package_future_task(F&& f, Args&&... args)
 {
 	using return_type = async_ret_type<F, Args...>;
 	auto prom = promise<return_type>();
 	auto fut = prom.get_future();
 
-	auto f = capture(std::forward<F>(func));
-	auto p = capture(std::move(prom));
-	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
-	return {std::move(fut), [f, p, params]() mutable {
+	// clang-format off
+
+    // All this ugliness is to minimize copies and moves
+	return {std::move(fut),
+                [
+                    p = capture(std::move(prom)),
+                    f = capture(std::forward<F>(f)),
+                    params = capture(std::forward<Args>(args)...)
+                ]() mutable {
+
 				try
 				{
-					detail::call<Args&&...>(p.get(), f.get(), params.get());
+					detail::apply_and_forward_as<Args...>(
+						std::get<0>(p.get()), std::forward<F>(std::get<0>(f.get())), params.get());
 				}
 				catch(...)
 				{
 					try
 					{
 						// store anything thrown in the promise
-						p.get().set_exception(std::current_exception());
+						std::get<0>(p.get()).set_exception(std::current_exception());
 					}
 					catch(...)
 					{
 					} // set_exception() may throw too
 				}
 			}};
+// clang-format on
 }
 
 inline void launch(thread::id id, std::launch policy, task& func)

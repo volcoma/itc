@@ -234,15 +234,13 @@ namespace detail
 {
 
 template <typename F, typename... Args>
-auto package_simple_task(F&& f, Args&&... args) -> task
+task package_simple_task(F&& f, Args&&... args)
 {
-	auto callable = capture(std::forward<F>(f));
-	auto params = capture(std::make_tuple(std::forward<Args>(args)...));
-
-	return [callable, params]() mutable {
+	return [callable = capture(std::forward<F>(f)), params = capture(std::forward<Args>(args)...)]() mutable
+	{
 		utility::apply(
-			[&callable](auto&&... args) {
-				utility::invoke(std::forward<F>(callable.get()), std::move(args)...);
+			[&callable](std::decay_t<Args>&... args) {
+				utility::invoke(std::forward<F>(std::get<0>(callable.get())), std::forward<Args>(args)...);
 			},
 			params.get());
 	};
