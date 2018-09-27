@@ -7,6 +7,20 @@
 
 namespace itc
 {
+template <class T>
+struct unwrap_refwrapper
+{
+    using type = T;
+};
+
+template <class T>
+struct unwrap_refwrapper<std::reference_wrapper<T>>
+{
+    using type = T&;
+};
+
+template <class T>
+using special_decay_t = typename unwrap_refwrapper<typename std::decay<T>::type>::type;
 
 template <typename... Args>
 class move_on_copy_t
@@ -14,10 +28,10 @@ class move_on_copy_t
 public:
 	move_on_copy_t& operator=(const move_on_copy_t& other) = delete;
 	move_on_copy_t& operator=(move_on_copy_t&& other) = delete;
-	using T = decltype(std::make_tuple(std::declval<Args>()...));
+	using T = std::tuple<special_decay_t<Args>...>;
 
 	template <typename... U, typename = std::enable_if_t<
-								 std::is_same<T, decltype(std::make_tuple(std::declval<U>()...))>::value>>
+								 std::is_same<T, std::tuple<special_decay_t<U>...>>::value>>
 	move_on_copy_t(U&&... args) noexcept
 		: value_(std::make_tuple(std::forward<U>(args)...))
 	{
