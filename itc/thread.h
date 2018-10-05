@@ -19,7 +19,7 @@ class thread : public std::thread
 public:
 	using id = std::uint64_t;
 
-	thread() noexcept = default;
+	thread() noexcept;
 	thread(thread&&) noexcept = default;
 	thread& operator=(thread&&) noexcept = default;
 

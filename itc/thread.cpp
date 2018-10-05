@@ -606,6 +606,8 @@ void thread::register_this()
 	id_ = register_thread(std::thread::get_id());
 }
 
+thread::thread() noexcept = default;
+
 thread::~thread()
 {
 	if(joinable())
