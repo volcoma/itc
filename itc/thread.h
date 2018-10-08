@@ -96,11 +96,6 @@ std::vector<thread::id> get_all_registered_threads();
 std::size_t get_pending_task_count(thread::id id);
 
 //-----------------------------------------------------------------------------
-/// Retrieves the main thread id.
-//-----------------------------------------------------------------------------
-thread::id main_id();
-
-//-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
@@ -142,6 +137,14 @@ thread make_thread(const std::string& name = "");
 //-----------------------------------------------------------------------------
 shared_thread make_shared_thread(const std::string& name = "");
 
+namespace main_thread
+{
+//-----------------------------------------------------------------------------
+/// Retrieves the main thread id.
+//-----------------------------------------------------------------------------
+thread::id get_id();
+}
+
 //-----------------------------------------------------------------------------
 /// this_thread namespace describe actions you can do
 /// while inside a thread's context
@@ -174,7 +177,7 @@ thread::id get_id();
 void process();
 
 //-----------------------------------------------------------------------------
-/// Process all tasks.
+/// Process all tasks until specified timeout_duration has elapsed.
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
 void process_for(const std::chrono::duration<Rep, Period>& rtime);
@@ -218,10 +221,6 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 
-//-----------------------------------------------------------------------------
-/// Check is this thread the main thread
-//-----------------------------------------------------------------------------
-bool is_main();
 } // namespace this_thread
 } // namespace itc
 
@@ -342,4 +341,5 @@ inline void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time
 	sleep_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 }
 } // namespace this_thread
+
 } // namespace itc

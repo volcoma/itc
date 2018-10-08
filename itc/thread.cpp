@@ -57,7 +57,7 @@ thread_context& get_local_context()
 
 void name_thread(std::thread& th, const std::string& name)
 {
-	if(global_state.utilities.set_thread_name)
+	if(global_state.utilities.set_thread_name && !name.empty())
 	{
 		global_state.utilities.set_thread_name(th, name);
 	}
@@ -146,7 +146,7 @@ void init(const init_data& data)
 	this_thread::register_this_thread();
 
 	std::unique_lock<std::mutex> lock(global_state.mutex);
-	if(global_state.main_id != invalid_id())
+	if(main_thread::get_id() != invalid_id())
 	{
 		log_error_func("Already initted.");
 		return;
@@ -264,11 +264,6 @@ thread::id register_thread(std::thread::id id)
 	return ctx->id;
 }
 
-thread::id main_id()
-{
-	return global_state.main_id;
-}
-
 void notify(thread::id id)
 {
 	invoke(id, []() {});
@@ -310,7 +305,13 @@ bool invoke_packaged_task(thread::id id, task& f)
 	return true;
 }
 } // namespace detail
-
+namespace main_thread
+{
+thread::id get_id()
+{
+	return global_state.main_id;
+}
+}
 namespace this_thread
 {
 namespace detail
@@ -359,7 +360,7 @@ void process_all_for(std::unique_lock<std::mutex>& lock, const std::chrono::micr
 	auto now = clock::now();
 	auto end_time = now + rtime;
 
-	while(now < end_time && prepare_tasks(local_context))
+	while(!notified_for_exit() && now < end_time && prepare_tasks(local_context))
 	{
 		auto& processing_tasks = local_context.processing_tasks;
 		auto& idx = local_context.processing_idx;
@@ -390,7 +391,7 @@ void process_all(std::unique_lock<std::mutex>& lock)
 	}
 	auto& local_context = get_local_context();
 
-	while(prepare_tasks(local_context))
+	while(!notified_for_exit() && prepare_tasks(local_context))
 	{
 		auto& processing_tasks = local_context.processing_tasks;
 		auto& idx = local_context.processing_idx;
@@ -540,7 +541,7 @@ bool notified_for_exit()
 
 void process()
 {
-	detail::process_for(std::chrono::seconds(100));
+	detail::process();
 }
 
 void wait()
@@ -561,10 +562,6 @@ thread::id get_id()
 	return local_context.id;
 }
 
-bool is_main()
-{
-	return this_thread::get_id() == main_id();
-}
 } // namespace this_thread
 
 thread make_thread(const std::string& name)
