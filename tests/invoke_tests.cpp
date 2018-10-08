@@ -16,7 +16,7 @@ itc::thread::id create_detached_thread()
 
 		while(!itc::this_thread::notified_for_exit())
 		{
-			itc::notify(itc::main_id());
+			itc::notify(itc::main_thread::get_id());
 
 			sout() << "th" << id << " detached thread waiting ..."
 				   << "\n";
@@ -44,7 +44,7 @@ itc::thread create_thread()
 
 		while(!itc::this_thread::notified_for_exit())
 		{
-			itc::notify(itc::main_id());
+            itc::notify(itc::main_thread::get_id());
 
 			sout() << "th" << id << " shared thread waiting ..."
 				   << "\n";
