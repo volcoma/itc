@@ -39,9 +39,12 @@ struct shared_data
 
 #define log_info_func(msg) log_info("[itc::" + std::string(__func__) + "] : " + (msg))
 #define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + (msg))
-
-static shared_data global_state;
-static thread_local thread_context* local_context_ptr = nullptr;
+namespace
+{
+constexpr size_t capacity_shrink_threashold = 256;
+shared_data global_state;
+thread_local thread_context* local_context_ptr = nullptr;
+}
 void set_local_context(thread_context* context)
 {
 	local_context_ptr = context;
@@ -232,6 +235,10 @@ bool prepare_tasks(thread_context& context)
 	{
 		std::swap(context.tasks, context.processing_tasks);
 		context.tasks.clear();
+        if(context.tasks.capacity() > capacity_shrink_threashold)
+        {
+            context.tasks.shrink_to_fit();
+        }
 		context.processing_idx = 0;
 	}
 

@@ -16,7 +16,7 @@ class semaphore
 public:
 	using callback = std::function<void()>;
 
-	semaphore() = default;
+	semaphore() noexcept = default;
 
 	// mutex prevents us from being moveable
 	semaphore(semaphore&& rhs) = delete;
