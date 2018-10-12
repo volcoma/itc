@@ -44,7 +44,13 @@ public:
 	//-----------------------------------------------------------------------------
 	bool try_lock()
 	{
-		return flag_.test_and_set() == false;
+		if(flag_.test_and_set())
+        {
+            return false;
+        }
+
+        owner_ = this_thread::get_id();
+        return true;
 	}
 
     //-----------------------------------------------------------------------------
