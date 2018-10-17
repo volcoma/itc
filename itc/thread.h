@@ -221,6 +221,10 @@ void sleep_for(const std::chrono::duration<Rep, Period>& rtime);
 template <typename Clock, typename Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 
+//-----------------------------------------------------------------------------
+/// Gets the current processing stack depth of this thread
+//-----------------------------------------------------------------------------
+std::uint32_t get_depth();
 } // namespace this_thread
 } // namespace itc
 

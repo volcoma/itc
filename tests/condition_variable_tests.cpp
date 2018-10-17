@@ -25,11 +25,11 @@ void run_tests(int iterations)
 			auto res = cv->wait_for(lock, 50ms);
 			if(res == std::cv_status::no_timeout)
 			{
-				sout() << "th1 cv notified " << i << "\n";
+				sout() << "th1 cv notified " << i;
 			}
 			else
 			{
-				sout() << "th1 cv timed out " << i << "\n";
+				sout() << "th1 cv timed out " << i;
 			}
 		});
 
@@ -39,11 +39,11 @@ void run_tests(int iterations)
 			auto res = cv->wait_for(lock, 100ms);
 			if(res == std::cv_status::no_timeout)
 			{
-				sout() << "th2 cv notified " << i << "\n";
+				sout() << "th2 cv notified " << i;
 			}
 			else
 			{
-				sout() << "th2 cv timed out " << i << "\n";
+				sout() << "th2 cv timed out " << i;
 			}
 		});
 		std::this_thread::sleep_for(60ms);

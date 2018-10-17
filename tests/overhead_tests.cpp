@@ -11,46 +11,46 @@ void run_tests()
 {
 	Informer info;
 
-	sout() << "-------------------\n";
-	sout() << "itc::invoke via argument (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::invoke via argument (rvalue)";
 	itc::invoke(itc::main_thread::get_id(), [](const Informer&) {}, Informer{});
 	itc::this_thread::process();
 
-	sout() << "-------------------\n";
-	sout() << "itc::invoke via capture (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::invoke via capture (rvalue)";
 	itc::invoke(itc::main_thread::get_id(), [arg = Informer{}](){});
 	itc::this_thread::process();
 
-	sout() << "-------------------\n";
-	sout() << "itc::async via argument (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::async via argument (rvalue)";
 	itc::async(itc::main_thread::get_id(), std::launch::async, [](const Informer&) {}, Informer{}).wait();
 
-	sout() << "-------------------\n";
-	sout() << "std::async via argument (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "std::async via argument (rvalue)";
 	std::async(std::launch::async, [](const Informer&) {}, Informer{}).wait();
 
-	sout() << "-------------------\n";
-	sout() << "itc::async via capture (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::async via capture (rvalue)";
 	itc::async(itc::main_thread::get_id(), std::launch::async, [arg = Informer{}](){}).wait();
 
-	sout() << "-------------------\n";
-	sout() << "std::async via capture (rvalue)\n";
+	sout() << "-------------------";
+	sout() << "std::async via capture (rvalue)";
 	std::async(std::launch::async, [arg = Informer{}](){}).wait();
 
-	sout() << "-------------------\n";
-	sout() << "itc::async via argument  (lvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::async via argument  (lvalue)";
 	itc::async(itc::main_thread::get_id(), std::launch::async, [](const Informer&) {}, info).wait();
 
-	sout() << "-------------------\n";
-	sout() << "std::async via argument (lvalue)\n";
+	sout() << "-------------------";
+	sout() << "std::async via argument (lvalue)";
 	std::async(std::launch::async, [](const Informer&) {}, info).wait();
 
-	sout() << "-------------------\n";
-	sout() << "itc::async via capture (lvalue)\n";
+	sout() << "-------------------";
+	sout() << "itc::async via capture (lvalue)";
 	itc::async(itc::main_thread::get_id(), std::launch::async, [info]() {}).wait();
 
-	sout() << "-------------------\n";
-	sout() << "std::async via capture (lvalue)\n";
+	sout() << "-------------------";
+	sout() << "std::async via capture (lvalue)";
 	std::async(std::launch::async, [info]() {}).wait();
 }
 /*

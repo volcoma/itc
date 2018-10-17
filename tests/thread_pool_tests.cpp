@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-    auto now = itc::clock::now();
+	auto now = itc::clock::now();
 
 	itc::thread_pool pool({{itc::priority::category::normal, 2},
 						   {itc::priority::category::high, 1},
@@ -24,7 +24,7 @@ void run_tests(int iterations)
             auto job = pool.schedule(itc::priority::normal(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
-                sout() << "call normal priority job " << i << " variant : " << j << "\n";
+                sout() << "call normal priority job " << i << " variant : " << j;
             });
 //            pool.change_priority(job.id, itc::priority::critical());
 
@@ -45,7 +45,7 @@ void run_tests(int iterations)
             pool.schedule(itc::priority::high(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
-                sout() << "call high priority job " << i << " variant : " << j << "\n";
+                sout() << "call high priority job " << i << " variant : " << j;
             });
 			// clang-format on
 		}
@@ -56,18 +56,17 @@ void run_tests(int iterations)
             pool.schedule(itc::priority::critical(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
-                sout() << "call critical priority job " << i << " variant : " << j << "\n";
+                sout() << "call critical priority job " << i << " variant : " << j;
             });
 			// clang-format on
 		}
 	}
 
-	//pool.stop_all();
+	// pool.stop_all();
 	pool.wait_all();
 
-    auto end = itc::clock::now();
-    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end-now);
-    sout() << dur.count() << "ms\n";
-
+	auto end = itc::clock::now();
+	auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - now);
+	sout() << dur.count() << "ms\n";
 }
 } // namespace thread_pool_tests

@@ -18,6 +18,7 @@ struct thread_context
 
 	std::vector<task> processing_tasks;
 	std::size_t processing_idx = 0;
+	std::atomic<std::uint32_t> processing_stack_depth{0};
 
 	std::condition_variable wakeup_event;
 	std::atomic<bool> wakeup = {false};
@@ -235,10 +236,10 @@ bool prepare_tasks(thread_context& context)
 	{
 		std::swap(context.tasks, context.processing_tasks);
 		context.tasks.clear();
-        if(context.tasks.capacity() > capacity_shrink_threashold)
-        {
-            context.tasks.shrink_to_fit();
-        }
+		if(context.tasks.capacity() > capacity_shrink_threashold)
+		{
+			context.tasks.shrink_to_fit();
+		}
 		context.processing_idx = 0;
 	}
 
@@ -329,7 +330,7 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 
 		return false;
 	}
@@ -339,13 +340,16 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 	{
 		auto task = std::move(local_context.processing_tasks[local_context.processing_idx]);
 		local_context.processing_idx++;
-
+		local_context.processing_stack_depth++;
 		lock.unlock();
 
 		if(task)
 		{
 			task();
 		}
+
+		lock.lock();
+		local_context.processing_stack_depth--;
 
 		return true;
 	}
@@ -355,33 +359,15 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 
 void process_all_for(std::unique_lock<std::mutex>& lock, const std::chrono::microseconds& rtime)
 {
-	if(!has_local_context())
-	{
-		log_error_func("Calling functions in the this_thread namespace "
-					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
-		return;
-	}
-	auto& local_context = get_local_context();
-
 	auto now = clock::now();
 	auto end_time = now + rtime;
 
-	while(!notified_for_exit() && now < end_time && prepare_tasks(local_context))
+	while(!notified_for_exit() && now < end_time)
 	{
-		auto& processing_tasks = local_context.processing_tasks;
-		auto& idx = local_context.processing_idx;
-		auto task = std::move(processing_tasks[idx]);
-		idx++;
-
-		lock.unlock();
-
-		if(task)
+		if(!process_one(lock))
 		{
-			task();
+			break;
 		}
-
-		lock.lock();
 
 		now = clock::now();
 	}
@@ -389,30 +375,12 @@ void process_all_for(std::unique_lock<std::mutex>& lock, const std::chrono::micr
 
 void process_all(std::unique_lock<std::mutex>& lock)
 {
-	if(!has_local_context())
+	while(!notified_for_exit())
 	{
-		log_error_func("Calling functions in the this_thread namespace "
-					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
-		return;
-	}
-	auto& local_context = get_local_context();
-
-	while(!notified_for_exit() && prepare_tasks(local_context))
-	{
-		auto& processing_tasks = local_context.processing_tasks;
-		auto& idx = local_context.processing_idx;
-		auto task = std::move(processing_tasks[idx]);
-		idx++;
-
-		lock.unlock();
-
-		if(task)
+		if(!process_one(lock))
 		{
-			task();
+			break;
 		}
-
-		lock.lock();
 	}
 }
 
@@ -422,7 +390,7 @@ void process_for(const std::chrono::microseconds& rtime)
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return;
 	}
 	auto& local_context = get_local_context();
@@ -438,7 +406,7 @@ void process()
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return;
 	}
 	auto& local_context = get_local_context();
@@ -456,7 +424,7 @@ std::cv_status wait_for(const std::chrono::microseconds& wait_duration)
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return status;
 	}
 	auto& local_context = get_local_context();
@@ -493,7 +461,7 @@ void wait()
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return;
 	}
 	auto& local_context = get_local_context();
@@ -538,7 +506,7 @@ bool notified_for_exit()
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return true;
 	}
 	auto& local_context = get_local_context();
@@ -562,11 +530,24 @@ thread::id get_id()
 	{
 		log_error_func("Calling functions in the this_thread namespace "
 					   "requires the thread to be already registered by calling "
-					   "this_thread::register_and_link");
+					   "this_thread::register_this_thread");
 		return invalid_id();
 	}
 	auto& local_context = get_local_context();
 	return local_context.id;
+}
+
+uint32_t get_depth()
+{
+	if(!has_local_context())
+	{
+		log_error_func("Calling functions in the this_thread namespace "
+					   "requires the thread to be already registered by calling "
+					   "this_thread::register_this_thread");
+		return 0;
+	}
+	auto& local_context = get_local_context();
+	return local_context.processing_stack_depth;
 }
 
 } // namespace this_thread
