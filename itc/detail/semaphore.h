@@ -1,6 +1,7 @@
 #pragma once
 #include "../thread.h"
 #include <atomic>
+#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
@@ -11,6 +12,21 @@ namespace itc
 {
 namespace detail
 {
+
+// based on p0660r2
+class interrupt_token
+{
+public:
+	explicit interrupt_token() = default;
+	explicit interrupt_token(bool b);
+
+	bool interrupt() noexcept;
+	bool is_interrupted() const noexcept;
+
+private:
+	std::shared_ptr<std::atomic<bool>> flag_;
+};
+
 class semaphore
 {
 public:
@@ -72,18 +88,16 @@ public:
 	}
 
 protected:
-	using notification_flag = std::shared_ptr<std::atomic<bool>>;
-
 	struct waiter_info
 	{
-		notification_flag flag;
+		interrupt_token token;
 		thread::id id;
 	};
 
 	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration,
 								 const callback& before_wait, const callback& after_wait) const;
 
-	notification_flag add_waiter(thread::id id) const;
+	interrupt_token add_waiter(thread::id id) const;
 
 	void remove_waiter(thread::id id) const;
 

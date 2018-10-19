@@ -6,6 +6,23 @@ namespace itc
 namespace detail
 {
 
+interrupt_token::interrupt_token(bool b)
+	: flag_{std::make_shared<std::atomic<bool>>(b)}
+{
+}
+
+bool interrupt_token::interrupt() noexcept
+{
+	assert(flag_ != nullptr);
+	return flag_->exchange(true);
+}
+
+bool interrupt_token::is_interrupted() const noexcept
+{
+	assert(flag_ != nullptr);
+	return flag_->load();
+}
+
 void semaphore::notify_one() noexcept
 {
 	auto waiter = [&]() {
@@ -26,7 +43,7 @@ void semaphore::notify_one() noexcept
 
 	if(waiter.id != invalid_id())
 	{
-		waiter.flag->store(true);
+		waiter.token.interrupt();
 
 		notify(waiter.id);
 	}
@@ -40,11 +57,11 @@ void semaphore::notify_all() noexcept
 		return std::move(waiters_);
 	}();
 
-	for(const auto& waiter : waiters)
+	for(auto& waiter : waiters)
 	{
 		if(waiter.id != invalid_id())
 		{
-			waiter.flag->store(true);
+			waiter.token.interrupt();
 
 			notify(waiter.id);
 		}
@@ -59,9 +76,9 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
 	/// note: we may be the last reference to the
 	/// flag as the notify_functions will set it
 	/// and erase it from the container
-	auto notified_flag = add_waiter(id);
+	auto token = add_waiter(id);
 
-	while(!(notified_flag->load()))
+	while(!token.is_interrupted())
 	{
 		if(this_thread::notified_for_exit())
 		{
@@ -97,9 +114,9 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 	/// note: we may be the last reference to the
 	/// flag as the notify_functions will set it
 	/// and erase it from the container
-	auto notified_flag = add_waiter(id);
+	auto token = add_waiter(id);
 
-	while(!(notified_flag->load()))
+	while(!token.is_interrupted())
 	{
 		if(now >= end_time)
 		{
@@ -134,7 +151,7 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 	return status;
 }
 
-semaphore::notification_flag semaphore::add_waiter(thread::id id) const
+interrupt_token semaphore::add_waiter(thread::id id) const
 {
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 
@@ -142,14 +159,14 @@ semaphore::notification_flag semaphore::add_waiter(thread::id id) const
 						   [&id](const waiter_info& waiter) { return waiter.id == id; });
 	if(it != std::end(waiters_))
 	{
-		return it->flag;
+		return it->token;
 	}
 
 	waiter_info info;
 	info.id = id;
-	info.flag = std::make_shared<std::atomic<bool>>(false);
+	info.token = interrupt_token{false};
 	waiters_.emplace_back(std::move(info));
-	return waiters_.back().flag;
+	return waiters_.back().token;
 }
 
 void semaphore::remove_waiter(thread::id id) const
@@ -160,5 +177,6 @@ void semaphore::remove_waiter(thread::id id) const
 								  [&id](const waiter_info& waiter) { return waiter.id == id; }),
 				   std::end(waiters_));
 }
+
 } // namespace detail
 } // namespace itc
