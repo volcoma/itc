@@ -26,7 +26,7 @@ struct thread_context
 	std::atomic<bool> exit = {false};
 };
 
-struct shared_data
+struct program_context
 {
 	std::atomic<thread::id> id_generator = {0};
 
@@ -43,87 +43,93 @@ struct shared_data
 namespace
 {
 constexpr size_t capacity_shrink_threashold = 256;
-shared_data global_state;
-thread_local thread_context* local_context_ptr = nullptr;
+program_context global_data;
+thread_local thread_context* local_data = nullptr;
+}
+
+program_context& get_global_context()
+{
+	return global_data;
 }
 void set_local_context(thread_context* context)
 {
-	local_context_ptr = context;
+	local_data = context;
 }
 bool has_local_context()
 {
-	return !(local_context_ptr == nullptr);
+	return !(local_data == nullptr);
 }
 thread_context& get_local_context()
 {
-	return *local_context_ptr;
+	return *local_data;
 }
 
 void name_thread(std::thread& th, const std::string& name)
 {
-	if(global_state.utilities.set_thread_name && !name.empty())
+	const auto& global_context = get_global_context();
+	if(global_context.utilities.set_thread_name && !name.empty())
 	{
-		global_state.utilities.set_thread_name(th, name);
+		global_context.utilities.set_thread_name(th, name);
 	}
 }
 
 void log_info(const std::string& name)
 {
-	if(global_state.utilities.log_info)
+	const auto& global_context = get_global_context();
+	if(global_context.utilities.log_info)
 	{
-		global_state.utilities.log_info(name);
+		global_context.utilities.log_info(name);
 	}
 }
 
 void log_error(const std::string& name)
 {
-	if(global_state.utilities.log_error)
+	const auto& global_context = get_global_context();
+	if(global_context.utilities.log_error)
 	{
-		global_state.utilities.log_error(name);
+		global_context.utilities.log_error(name);
 	}
-}
-
-thread::id get_id(std::thread::id id)
-{
-	auto tidit = global_state.id_map.find(id);
-	if(tidit != global_state.id_map.end())
-	{
-		return tidit->second;
-	}
-	return invalid_id();
 }
 
 std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thread_id)
 {
-
-	std::unique_lock<std::mutex> lock(global_state.mutex);
-	auto id = get_id(native_thread_id);
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
+	auto id = [&]() {
+		auto tidit = global_context.id_map.find(native_thread_id);
+		if(tidit != global_context.id_map.end())
+		{
+			return tidit->second;
+		}
+		return invalid_id();
+	}();
 
 	if(id == invalid_id())
 	{
-		id = ++global_state.id_generator;
+		id = ++global_context.id_generator;
 	}
 
-	auto it = global_state.contexts.find(id);
-	if(it != global_state.contexts.end())
+	auto it = global_context.contexts.find(id);
+	if(it != global_context.contexts.end())
 	{
 		return it->second;
 	}
 
-	auto context = std::make_shared<thread_context>();
-	context->tasks.reserve(16);
-	context->native_thread_id = native_thread_id;
-	context->id = id;
-	global_state.id_map[native_thread_id] = id;
-	global_state.contexts.emplace(id, context);
-	return context;
+	auto local_context = std::make_shared<thread_context>();
+	local_context->tasks.reserve(16);
+	local_context->native_thread_id = native_thread_id;
+	local_context->id = id;
+	global_context.id_map[native_thread_id] = id;
+	global_context.contexts.emplace(id, local_context);
+	return local_context;
 }
 
 void unregister_thread_impl(thread::id id)
 {
-	std::lock_guard<std::mutex> lock(global_state.mutex);
-	auto it = global_state.contexts.find(id);
-	if(it == global_state.contexts.end())
+	auto& global_context = get_global_context();
+	std::lock_guard<std::mutex> lock(global_context.mutex);
+	auto it = global_context.contexts.find(id);
+	if(it == global_context.contexts.end())
 	{
 		return;
 	}
@@ -132,32 +138,32 @@ void unregister_thread_impl(thread::id id)
 	auto context = it->second;
 	std::lock_guard<std::mutex> local_lock(context->tasks_mutex);
 
-	global_state.id_map.erase(context->native_thread_id);
+	global_context.id_map.erase(context->native_thread_id);
 	// now we can safely remove the context
 	// from the global container and the local variable
 	// will be the last reference to it
-	global_state.contexts.erase(id);
+	global_context.contexts.erase(id);
 	// if this was the last entry then
 	// notify that everything is cleaned up
-	if(global_state.contexts.empty())
+	if(global_context.contexts.empty())
 	{
-		global_state.cleanup_event.notify_all();
+		global_context.cleanup_event.notify_all();
 	}
 }
 
 void init(const init_data& data)
 {
 	this_thread::register_this_thread();
-
-	std::unique_lock<std::mutex> lock(global_state.mutex);
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
 	if(main_thread::get_id() != invalid_id())
 	{
 		log_error_func("Already initted.");
 		return;
 	}
 
-	global_state.main_id = this_thread::get_id();
-	global_state.utilities = data;
+	global_context.main_id = this_thread::get_id();
+	global_context.utilities = data;
 
 	log_info_func("Successful.");
 }
@@ -173,10 +179,11 @@ void shutdown(const std::chrono::seconds& timeout)
 	{
 		notify_for_exit(id);
 	}
-	std::unique_lock<std::mutex> lock(global_state.mutex);
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-	auto result =
-		global_state.cleanup_event.wait_for(lock, timeout, []() { return global_state.contexts.empty(); });
+	auto result = global_context.cleanup_event.wait_for(lock, timeout,
+														[&]() { return global_context.contexts.empty(); });
 
 	if(result)
 	{
@@ -191,8 +198,9 @@ void shutdown(const std::chrono::seconds& timeout)
 std::vector<thread::id> get_all_registered_threads()
 {
 	std::vector<thread::id> result;
-	std::unique_lock<std::mutex> lock(global_state.mutex);
-	for(const auto& p : global_state.contexts)
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
+	for(const auto& p : global_context.contexts)
 	{
 		result.emplace_back(p.first);
 	}
@@ -207,11 +215,11 @@ size_t get_pending_task_count(thread::id id)
 		log_error_func("Invoking to an invalid thread.");
 		return 0;
 	}
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-	std::unique_lock<std::mutex> lock(global_state.mutex);
-
-	auto it = global_state.contexts.find(id);
-	if(it == global_state.contexts.end())
+	auto it = global_context.contexts.find(id);
+	if(it == global_context.contexts.end())
 	{
 		return 0;
 	}
@@ -248,10 +256,11 @@ bool prepare_tasks(thread_context& context)
 
 void notify_for_exit(thread::id id)
 {
-	std::unique_lock<std::mutex> lock(global_state.mutex);
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-	auto it = global_state.contexts.find(id);
-	if(it == global_state.contexts.end())
+	auto it = global_context.contexts.find(id);
+	if(it == global_context.contexts.end())
 	{
 		return;
 	}
@@ -293,11 +302,11 @@ bool invoke_packaged_task(thread::id id, task& f)
 		log_error_func("Invoking to an invalid thread.");
 		return false;
 	}
+	auto& global_context = get_global_context();
+	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-	std::unique_lock<std::mutex> lock(global_state.mutex);
-
-	auto it = global_state.contexts.find(id);
-	if(it == global_state.contexts.end())
+	auto it = global_context.contexts.find(id);
+	if(it == global_context.contexts.end())
 	{
 		return false;
 	}
@@ -317,7 +326,8 @@ namespace main_thread
 {
 thread::id get_id()
 {
-	return global_state.main_id;
+	const auto& global_context = get_global_context();
+	return global_context.main_id;
 }
 }
 namespace this_thread

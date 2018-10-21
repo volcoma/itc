@@ -38,6 +38,8 @@ using then_ret_type = callable_ret_type<F, T>;
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
+template <typename F, typename... Args>
+auto async(std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
 
 //-----------------------------------------------------------------------------
 /// The template function async runs the function f a
@@ -47,6 +49,8 @@ auto async(thread::id id, std::launch policy, F&& f, Args&&... args) -> future<a
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
 auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
+template <typename F, typename... Args>
+auto async(F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
 
 //-----------------------------------------------------------------------------
 /// produces a future that is ready immediately
@@ -313,6 +317,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>;
+	template <typename F>
+	auto then(std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -321,6 +327,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, F&& f) -> future<then_ret_type<F, future<T>>>;
+	template <typename F>
+	auto then(F&& f) -> future<then_ret_type<F, future<T>>>;
 };
 
 template <>
@@ -372,6 +380,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>;
+	template <typename F>
+	auto then(std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -380,6 +390,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, F&& f) -> future<then_ret_type<F, future<void>>>;
+	template <typename F>
+	auto then(F&& f) -> future<then_ret_type<F, future<void>>>;
 };
 
 //-----------------------------------------------------------------------------
@@ -437,6 +449,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
+	template <typename F>
+	auto then(std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -444,6 +458,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
+	template <typename F>
+	auto then(F&& f) const -> future<then_ret_type<F, shared_future<T>>>;
 };
 
 //-----------------------------------------------------------------------------
@@ -501,6 +517,8 @@ public:
 	template <typename F>
 	auto then(thread::id id, std::launch policy, F&& f) const
 		-> future<then_ret_type<F, shared_future<void>>>;
+	template <typename F>
+	auto then(std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<void>>>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -508,6 +526,8 @@ public:
 	//-----------------------------------------------------------------------------
 	template <typename F>
 	auto then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<void>>>;
+	template <typename F>
+	auto then(F&& f) const -> future<then_ret_type<F, shared_future<void>>>;
 };
 
 //-----------------------------------------------------------------------------
@@ -666,6 +686,23 @@ auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Arg
 				 std::forward<Args>(args)...);
 }
 
+template <typename F, typename... Args>
+auto async(std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
+{
+	auto detached_thread = make_thread();
+	detached_thread.detach();
+	return async(detached_thread.get_id(), policy, std::forward<F>(f), std::forward<Args>(args)...);
+}
+
+template <typename F, typename... Args>
+auto async(F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
+{
+	return itc::async(std::launch::deferred | std::launch::async, std::forward<F>(f),
+					  std::forward<Args>(args)...);
+}
+//-----------------------------------------------------------------------------
+/// future<T>::then() overloads
+//-----------------------------------------------------------------------------
 template <typename T>
 template <typename F>
 auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
@@ -696,6 +733,25 @@ auto future<T>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<T>>
 
 template <typename T>
 template <typename F>
+auto future<T>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
+{
+	auto detached_thread = make_thread();
+	detached_thread.detach();
+	return then(detached_thread.get_id(), policy, std::forward<F>(f));
+}
+
+template <typename T>
+template <typename F>
+auto future<T>::then(F&& f) -> future<then_ret_type<F, future<T>>>
+{
+	return then(std::launch::async | std::launch::deferred, std::forward<F>(f));
+}
+
+//-----------------------------------------------------------------------------
+/// shared_future<T>::then() overloads
+//-----------------------------------------------------------------------------
+template <typename T>
+template <typename F>
 auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<T>>>
 {
@@ -723,6 +779,25 @@ auto shared_future<T>::then(thread::id id, F&& f) const -> future<then_ret_type<
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
 
+template <typename T>
+template <typename F>
+auto shared_future<T>::then(std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>
+{
+	auto detached_thread = make_thread();
+	detached_thread.detach();
+	return then(detached_thread.get_id(), policy, std::forward<F>(f));
+}
+
+template <typename T>
+template <typename F>
+auto shared_future<T>::then(F&& f) const -> future<then_ret_type<F, shared_future<T>>>
+{
+	return then(std::launch::async | std::launch::deferred, std::forward<F>(f));
+}
+
+//-----------------------------------------------------------------------------
+/// future<void>::then() overloads
+//-----------------------------------------------------------------------------
 template <typename F>
 auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
 {
@@ -750,6 +825,23 @@ auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<
 }
 
 template <typename F>
+auto future<void>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
+{
+	auto detached_thread = make_thread();
+	detached_thread.detach();
+	return then(detached_thread.get_id(), policy, std::forward<F>(f));
+}
+
+template <typename F>
+auto future<void>::then(F&& f) -> future<then_ret_type<F, future<void>>>
+{
+	return then(std::launch::async | std::launch::deferred, std::forward<F>(f));
+}
+
+//-----------------------------------------------------------------------------
+/// shared_future<void>::then() overloads
+//-----------------------------------------------------------------------------
+template <typename F>
 auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<void>>>
 {
@@ -774,5 +866,20 @@ template <typename F>
 auto shared_future<void>::then(thread::id id, F&& f) const -> future<then_ret_type<F, shared_future<void>>>
 {
 	return then(id, std::launch::async | std::launch::deferred, std::forward<F>(f));
+}
+
+template <typename F>
+auto shared_future<void>::then(std::launch policy, F&& f) const
+	-> future<then_ret_type<F, shared_future<void>>>
+{
+	auto detached_thread = make_thread();
+	detached_thread.detach();
+	return then(detached_thread.get_id(), policy, std::forward<F>(f));
+}
+
+template <typename F>
+auto shared_future<void>::then(F&& f) const -> future<then_ret_type<F, shared_future<void>>>
+{
+	return then(std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
 } // namespace itc
