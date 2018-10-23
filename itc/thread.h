@@ -72,6 +72,7 @@ struct init_data
 	std::function<void(const std::string&)> log_info;
 	std::function<void(const std::string&)> log_error;
 	std::function<void(std::thread&, const std::string&)> set_thread_name;
+	std::size_t capacity_shrink_threashold = 256;
 };
 
 //-----------------------------------------------------------------------------

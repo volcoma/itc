@@ -6,16 +6,16 @@ struct sout
 {
     ~sout()
     {
-        std::cout << str.str() << std::endl;
+        std::cout << stream.str() << std::endl;
     }
     template<typename T>
     sout& operator<<(T&& val)
     {
-        str << val;
+        stream << val;
         return *this;
     }
 
-    std::stringstream str;
+    std::stringstream stream;
 };
 
 

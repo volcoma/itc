@@ -10,7 +10,7 @@ namespace async_tests
 using namespace std::chrono_literals;
 
 void run_tests(int iterations)
-{
+{   
 	auto thread1 = itc::make_thread();
 	auto thread2 = itc::make_thread();
 

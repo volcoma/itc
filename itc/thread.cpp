@@ -18,11 +18,12 @@ struct thread_context
 
 	std::vector<task> processing_tasks;
 	std::size_t processing_idx = 0;
-	std::atomic<std::uint32_t> processing_stack_depth{0};
+	std::size_t capacity_shrink_threashold = 0;
 
 	std::condition_variable wakeup_event;
-	std::atomic<bool> wakeup = {false};
+	std::atomic<std::uint32_t> processing_stack_depth{0};
 
+	std::atomic<bool> wakeup = {false};
 	std::atomic<bool> exit = {false};
 };
 
@@ -34,15 +35,14 @@ struct program_context
 	std::mutex mutex;
 	std::unordered_map<std::thread::id, thread::id> id_map;
 	std::unordered_map<thread::id, std::shared_ptr<thread_context>> contexts;
-	thread::id main_id = invalid_id();
-	init_data utilities;
+	thread::id main_thread_id = invalid_id();
+	init_data config;
 };
 
 #define log_info_func(msg) log_info("[itc::" + std::string(__func__) + "] : " + (msg))
 #define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + (msg))
 namespace
 {
-constexpr size_t capacity_shrink_threashold = 256;
 program_context global_data;
 thread_local thread_context* local_data = nullptr;
 }
@@ -67,27 +67,27 @@ thread_context& get_local_context()
 void name_thread(std::thread& th, const std::string& name)
 {
 	const auto& global_context = get_global_context();
-	if(global_context.utilities.set_thread_name && !name.empty())
+	if(global_context.config.set_thread_name && !name.empty())
 	{
-		global_context.utilities.set_thread_name(th, name);
+		global_context.config.set_thread_name(th, name);
 	}
 }
 
 void log_info(const std::string& name)
 {
 	const auto& global_context = get_global_context();
-	if(global_context.utilities.log_info)
+	if(global_context.config.log_info)
 	{
-		global_context.utilities.log_info(name);
+		global_context.config.log_info(name);
 	}
 }
 
 void log_error(const std::string& name)
 {
 	const auto& global_context = get_global_context();
-	if(global_context.utilities.log_error)
+	if(global_context.config.log_error)
 	{
-		global_context.utilities.log_error(name);
+		global_context.config.log_error(name);
 	}
 }
 
@@ -119,6 +119,7 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 	local_context->tasks.reserve(16);
 	local_context->native_thread_id = native_thread_id;
 	local_context->id = id;
+	local_context->capacity_shrink_threashold = global_context.config.capacity_shrink_threashold;
 	global_context.id_map[native_thread_id] = id;
 	global_context.contexts.emplace(id, local_context);
 	return local_context;
@@ -158,23 +159,26 @@ void init(const init_data& data)
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 	if(main_thread::get_id() != invalid_id())
 	{
-		log_error_func("Already initted.");
 		return;
 	}
 
-	global_context.main_id = this_thread::get_id();
-	global_context.utilities = data;
+	global_context.main_thread_id = this_thread::get_id();
+	global_context.config = data;
 
 	log_info_func("Successful.");
 }
 
 void shutdown(const std::chrono::seconds& timeout)
 {
-	this_thread::unregister_this_thread();
+	auto all_threads = get_all_registered_threads();
+	if(all_threads.empty())
+	{
+		return;
+	}
 
+	this_thread::unregister_this_thread();
 	log_info_func("Notifying and waiting for threads to complete.");
 
-	auto all_threads = get_all_registered_threads();
 	for(const auto& id : all_threads)
 	{
 		notify_for_exit(id);
@@ -244,7 +248,7 @@ bool prepare_tasks(thread_context& context)
 	{
 		std::swap(context.tasks, context.processing_tasks);
 		context.tasks.clear();
-		if(context.tasks.capacity() > capacity_shrink_threashold)
+		if(context.tasks.capacity() > context.capacity_shrink_threashold)
 		{
 			context.tasks.shrink_to_fit();
 		}
@@ -327,7 +331,7 @@ namespace main_thread
 thread::id get_id()
 {
 	const auto& global_context = get_global_context();
-	return global_context.main_id;
+	return global_context.main_thread_id;
 }
 }
 namespace this_thread
