@@ -69,9 +69,9 @@ using clock = std::chrono::steady_clock;
 
 struct init_data
 {
-	std::function<void(const std::string&)> log_info;
-	std::function<void(const std::string&)> log_error;
-	std::function<void(std::thread&, const std::string&)> set_thread_name;
+	std::function<void(const std::string&)> log_info = nullptr;
+	std::function<void(const std::string&)> log_error = nullptr;
+	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
 	std::size_t capacity_shrink_threashold = 256;
 };
 
