@@ -11,31 +11,30 @@ namespace itc
 
 struct thread_context
 {
-	std::atomic<thread::id> id = {invalid_id()};
+	std::atomic<thread::id> id{invalid_id()};
 	std::atomic<std::thread::id> native_thread_id;
 	std::mutex tasks_mutex;
 	std::vector<task> tasks;
 
 	std::vector<task> processing_tasks;
-	std::size_t processing_idx = 0;
-	std::size_t capacity_shrink_threashold = 0;
+	std::size_t processing_idx{0};
+	std::size_t capacity_shrink_threashold{0};
 
 	std::condition_variable wakeup_event;
 	std::atomic<std::uint32_t> processing_stack_depth{0};
 
-	std::atomic<bool> wakeup = {false};
-	std::atomic<bool> exit = {false};
+	std::atomic<bool> wakeup{false};
+	std::atomic<bool> exit{false};
 };
 
 struct program_context
 {
-	std::atomic<thread::id> id_generator = {0};
-
+	std::atomic<thread::id> id_generator{};
 	std::condition_variable cleanup_event;
 	std::mutex mutex;
 	std::unordered_map<std::thread::id, thread::id> id_map;
 	std::unordered_map<thread::id, std::shared_ptr<thread_context>> contexts;
-	thread::id main_thread_id = invalid_id();
+	thread::id main_thread_id{invalid_id()};
 	init_data config;
 };
 
@@ -45,7 +44,7 @@ namespace
 {
 program_context global_data;
 thread_local thread_context* local_data = nullptr;
-}
+} // namespace
 
 program_context& get_global_context()
 {
@@ -332,7 +331,7 @@ thread::id get_id()
 	const auto& global_context = get_global_context();
 	return global_context.main_thread_id;
 }
-}
+} // namespace main_thread
 namespace this_thread
 {
 namespace detail

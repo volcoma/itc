@@ -60,7 +60,7 @@ private:
 //-----------------------------------------------------------------------------
 constexpr inline thread::id invalid_id()
 {
-	return 0;
+	return {};
 }
 
 using shared_thread = std::shared_ptr<thread>;
@@ -84,17 +84,6 @@ void init(const init_data& data = {});
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
 //-----------------------------------------------------------------------------
 void shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
-
-//-----------------------------------------------------------------------------
-/// Retrieves all registered thread ids.
-//-----------------------------------------------------------------------------
-std::vector<thread::id> get_all_registered_threads();
-
-//-----------------------------------------------------------------------------
-/// Retrieves the count of pending tasks for given thread id.
-/// Useful for debug.
-//-----------------------------------------------------------------------------
-std::size_t get_pending_task_count(thread::id id);
 
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
@@ -137,6 +126,17 @@ thread make_thread(const std::string& name = "");
 /// invoked into.
 //-----------------------------------------------------------------------------
 shared_thread make_shared_thread(const std::string& name = "");
+
+//-----------------------------------------------------------------------------
+/// Retrieves all registered thread ids.
+//-----------------------------------------------------------------------------
+std::vector<thread::id> get_all_registered_threads();
+
+//-----------------------------------------------------------------------------
+/// Retrieves the count of pending tasks for given thread id.
+/// Useful for debug.
+//-----------------------------------------------------------------------------
+std::size_t get_pending_task_count(thread::id id);
 
 namespace main_thread
 {
