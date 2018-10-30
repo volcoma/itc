@@ -35,6 +35,7 @@ struct program_context
 	std::unordered_map<std::thread::id, thread::id> id_map;
 	std::unordered_map<thread::id, std::shared_ptr<thread_context>> contexts;
 	thread::id main_thread_id{invalid_id()};
+	std::atomic<size_t> init_count{0};
 	init_data config;
 };
 
@@ -154,12 +155,12 @@ void unregister_thread_impl(thread::id id)
 void init(const init_data& data)
 {
 	this_thread::register_this_thread();
-	if(main_thread::get_id() != invalid_id())
+	auto& global_context = get_global_context();
+	if(global_context.init_count++ != 0)
 	{
 		return;
 	}
 
-	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 	global_context.main_thread_id = this_thread::get_id();
 	global_context.config = data;
@@ -168,20 +169,25 @@ void init(const init_data& data)
 
 void shutdown(const std::chrono::seconds& timeout)
 {
-	auto all_threads = get_all_registered_threads();
-	if(all_threads.empty())
+	auto& global_context = get_global_context();
+	if(global_context.init_count == 0)
+	{
+		log_error_func("Shutting down when not initted.");
+		return;
+	}
+
+	if(--global_context.init_count != 0)
 	{
 		return;
 	}
 
 	this_thread::unregister_this_thread();
 	log_info_func("Notifying and waiting for threads to complete.");
-
+	auto all_threads = get_all_registered_threads();
 	for(const auto& id : all_threads)
 	{
 		notify_for_exit(id);
 	}
-	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 
 	auto result = global_context.cleanup_event.wait_for(lock, timeout,
