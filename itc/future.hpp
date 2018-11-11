@@ -581,7 +581,7 @@ std::enable_if_t<!std::is_same<T, void>::value> apply_and_forward_as(promise<T>&
 {
 	p.set_value(utility::apply(
 		[&f](std::decay_t<Args>&... args) {
-			return utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+			return std::forward<F>(f)(std::forward<Args>(args)...);
 		},
 		params));
 }
@@ -590,7 +590,7 @@ std::enable_if_t<std::is_same<T, void>::value> apply_and_forward_as(promise<T>& 
 {
 	utility::apply(
 		[&f](std::decay_t<Args>&... args) {
-			utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+			std::forward<F>(f)(std::forward<Args>(args)...);
 		},
 		params);
 	p.set_value();

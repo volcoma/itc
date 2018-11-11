@@ -244,7 +244,7 @@ task package_simple_task(F&& f, Args&&... args)
 	{
 		utility::apply(
 			[&callable](std::decay_t<Args>&... args) {
-				utility::invoke(std::forward<F>(std::get<0>(callable.get())), std::forward<Args>(args)...);
+				std::forward<F>(std::get<0>(callable.get()))(std::forward<Args>(args)...);
 			},
 			params.get());
 	};
