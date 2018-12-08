@@ -154,13 +154,13 @@ void unregister_thread_impl(thread::id id)
 
 void init(const init_data& data)
 {
-	this_thread::register_this_thread();
 	auto& global_context = get_global_context();
 	if(global_context.init_count++ != 0)
 	{
 		return;
 	}
 
+	this_thread::register_this_thread();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 	global_context.main_thread_id = this_thread::get_id();
 	global_context.config = data;

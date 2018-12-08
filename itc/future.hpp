@@ -580,19 +580,14 @@ template <typename... Args, typename T, typename F, typename Tuple>
 std::enable_if_t<!std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
 {
 	p.set_value(utility::apply(
-		[&f](std::decay_t<Args>&... args) {
-			return std::forward<F>(f)(std::forward<Args>(args)...);
-		},
+		[&f](std::decay_t<Args>&... args) { return std::forward<F>(f)(std::forward<Args>(args)...); },
 		params));
 }
 template <typename... Args, typename T, typename F, typename Tuple>
 std::enable_if_t<std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
 {
-	utility::apply(
-		[&f](std::decay_t<Args>&... args) {
-			std::forward<F>(f)(std::forward<Args>(args)...);
-		},
-		params);
+	utility::apply([&f](std::decay_t<Args>&... args) { std::forward<F>(f)(std::forward<Args>(args)...); },
+				   params);
 	p.set_value();
 }
 
@@ -689,7 +684,11 @@ auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Arg
 template <typename F, typename... Args>
 auto async(std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
-	auto detached_thread = make_thread();
+	thread detached_thread([]() {
+		this_thread::register_this_thread();
+		this_thread::wait();
+		this_thread::unregister_this_thread();
+	});
 	detached_thread.detach();
 	return async(detached_thread.get_id(), policy, std::forward<F>(f), std::forward<Args>(args)...);
 }
@@ -735,7 +734,11 @@ template <typename T>
 template <typename F>
 auto future<T>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
 {
-	auto detached_thread = make_thread();
+	thread detached_thread([]() {
+		this_thread::register_this_thread();
+		this_thread::wait();
+		this_thread::unregister_this_thread();
+	});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -783,7 +786,11 @@ template <typename T>
 template <typename F>
 auto shared_future<T>::then(std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>
 {
-	auto detached_thread = make_thread();
+	thread detached_thread([]() {
+		this_thread::register_this_thread();
+		this_thread::wait();
+		this_thread::unregister_this_thread();
+	});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -827,7 +834,11 @@ auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<
 template <typename F>
 auto future<void>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
 {
-	auto detached_thread = make_thread();
+	thread detached_thread([]() {
+		this_thread::register_this_thread();
+		this_thread::wait();
+		this_thread::unregister_this_thread();
+	});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -872,7 +883,11 @@ template <typename F>
 auto shared_future<void>::then(std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<void>>>
 {
-	auto detached_thread = make_thread();
+	thread detached_thread([]() {
+		this_thread::register_this_thread();
+		this_thread::wait();
+		this_thread::unregister_this_thread();
+	});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
