@@ -130,7 +130,7 @@ void when_inner_helper(Context context, Future&& f)
 	std::get<I>(context->result) = move_or_forward(std::forward<Future>(f));
 	auto id = this_thread::get_id();
 
-	std::get<I>(context->result).then(id, [context](typename std::remove_reference<Future>::type f) {
+	std::get<I>(context->result).then(id, [context](auto f) {
 		std::lock_guard<std::mutex> lock(context->mutex);
 		++context->ready_futures;
 		std::get<I>(context->result) = std::move(f);
@@ -201,20 +201,20 @@ auto when_all(InputIt first, InputIt last)
 	shared_context->total_futures = std::distance(first, last);
 	shared_context->result.reserve(shared_context->total_futures);
 	size_t index = 0;
+	auto id = this_thread::get_id();
 
 	for(; first != last; ++first, ++index)
 	{
 		shared_context->result.emplace_back(std::move(*first));
-		shared_context->result[index].then(
-			[shared_context, index](typename std::iterator_traits<InputIt>::value_type f) mutable {
-				std::lock_guard<std::mutex> lock(shared_context->mutex);
-				shared_context->result[index] = std::move(f);
-				++shared_context->ready_futures;
-				if(shared_context->ready_futures == shared_context->total_futures)
-				{
-					shared_context->p.set_value(std::move(shared_context->result));
-				}
-			});
+		shared_context->result[index].then(id, [shared_context, index](auto f) {
+			std::lock_guard<std::mutex> lock(shared_context->mutex);
+			shared_context->result[index] = std::move(f);
+			++shared_context->ready_futures;
+			if(shared_context->ready_futures == shared_context->total_futures)
+			{
+				shared_context->p.set_value(std::move(shared_context->result));
+			}
+		});
 	}
 
 	return result_future;
@@ -272,23 +272,22 @@ auto when_any(InputIt first, InputIt last)
 
 	for(; first != last; ++first, ++index)
 	{
-		shared_context->result.futures[index].then(
-			id, [shared_context, index](typename std::iterator_traits<InputIt>::value_type f) mutable {
+		shared_context->result.futures[index].then(id, [shared_context, index](auto f) {
 
-				std::lock_guard<std::mutex> lock(shared_context->mutex);
-				if(!shared_context->ready)
+			std::lock_guard<std::mutex> lock(shared_context->mutex);
+			if(!shared_context->ready)
+			{
+				shared_context->result.index = index;
+				shared_context->ready = true;
+				shared_context->result.futures[index] = std::move(f);
+				if(shared_context->processed == shared_context->total && !shared_context->result_moved)
 				{
-					shared_context->result.index = index;
-					shared_context->ready = true;
-					shared_context->result.futures[index] = std::move(f);
-					if(shared_context->processed == shared_context->total && !shared_context->result_moved)
-					{
-						shared_context->p.set_value(std::move(shared_context->result));
-						shared_context->result_moved = true;
-					}
+					shared_context->p.set_value(std::move(shared_context->result));
+					shared_context->result_moved = true;
 				}
+			}
 
-			});
+		});
 		++shared_context->processed;
 	}
 

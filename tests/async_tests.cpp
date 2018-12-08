@@ -51,7 +51,7 @@ void run_tests(int iterations)
             }, i).share();
 
             {
-                auto chain = future.then(th1_id, [u = std::move(up)](auto parent)
+                auto chain = future.then(th1_id, [u = std::move(up)](auto parent) mutable
                 {
                     auto result = parent.get();
                     sout() << "chain then " << result;
