@@ -5,6 +5,13 @@
 
 namespace itc
 {
+
+template <typename Sequence>
+struct when_any_result
+{
+	size_t index = size_t(-1);
+	Sequence futures{};
+};
 //-----------------------------------------------------------------------------
 /// Create a future object that becomes ready when all of the
 /// input futures and shared_futures become ready. The behavior
@@ -22,12 +29,6 @@ template <class InputIt>
 auto when_all(InputIt first, InputIt last)
 	-> future<std::vector<typename std::iterator_traits<InputIt>::value_type>>;
 
-template <typename Sequence>
-struct when_any_result
-{
-	size_t index;
-	Sequence futures;
-};
 //-----------------------------------------------------------------------------
 /// Create a future object that becomes ready when at least one
 /// of the input futures and shared_futures become ready.
@@ -211,7 +212,10 @@ auto when_all(InputIt first, InputIt last)
 	-> future<std::vector<typename std::iterator_traits<InputIt>::value_type>>
 {
 	using result_inner_type = std::vector<typename std::iterator_traits<InputIt>::value_type>;
-
+	if(first == last)
+	{
+		return make_ready_future(result_inner_type{});
+	}
 	struct context
 	{
 		size_t total_futures = 0;
@@ -245,6 +249,11 @@ auto when_all(InputIt first, InputIt last)
 	return result_future;
 }
 
+inline auto when_all() -> future<std::tuple<>>
+{
+	return make_ready_future(std::tuple<>{});
+}
+
 template <typename... Futures>
 auto when_all(Futures&&... futures) -> future<std::tuple<std::decay_t<Futures>...>>
 {
@@ -272,6 +281,11 @@ auto when_any(InputIt first, InputIt last)
 	using result_inner_type = std::vector<value_type>;
 	using future_inner_type = when_any_result<result_inner_type>;
 
+	if(first == last)
+	{
+		return make_ready_future(future_inner_type{});
+	}
+
 	struct context
 	{
 		size_t total = 0;
@@ -280,7 +294,7 @@ auto when_any(InputIt first, InputIt last)
 		future_state_inner_type states;
 		promise<future_inner_type> p;
 		bool ready = false;
-		bool result_moved = false;
+		bool promise_set = false;
 		std::mutex mutex;
 
 		void recover_input_futures()
@@ -319,11 +333,11 @@ auto when_any(InputIt first, InputIt last)
 				shared_context->result.index = index;
 				shared_context->ready = true;
 				shared_context->result.futures[index] = std::move(f);
-				if(shared_context->processed == shared_context->total && !shared_context->result_moved)
+				if(shared_context->processed == shared_context->total && !shared_context->promise_set)
 				{
 					shared_context->recover_input_futures();
 					shared_context->p.set_value(std::move(shared_context->result));
-					shared_context->result_moved = true;
+					shared_context->promise_set = true;
 				}
 			}
 
@@ -333,15 +347,21 @@ auto when_any(InputIt first, InputIt last)
 
 	{
 		std::lock_guard<std::mutex> lock(shared_context->mutex);
-		if(shared_context->ready && !shared_context->result_moved)
+		if(shared_context->ready && !shared_context->promise_set)
 		{
 			shared_context->recover_input_futures();
 			shared_context->p.set_value(std::move(shared_context->result));
-			shared_context->result_moved = true;
+			shared_context->promise_set = true;
 		}
 	}
 
 	return result_future;
+}
+inline auto when_any() -> future<when_any_result<std::tuple<>>>
+{
+	using result_inner_type = std::tuple<>;
+	using future_inner_type = when_any_result<result_inner_type>;
+	return make_ready_future(future_inner_type{});
 }
 
 template <typename... Futures>

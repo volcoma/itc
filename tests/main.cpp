@@ -20,10 +20,10 @@ int main()
     data.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
 	itc::init(data);
 
-//    overhead_tests::run_tests();
-//    invoke_tests::run_tests(1000);
-//    cv_tests::run_tests(50);
-//    future_promise_tests::run_tests(50);
+    overhead_tests::run_tests();
+    invoke_tests::run_tests(1000);
+    cv_tests::run_tests(50);
+    future_promise_tests::run_tests(50);
     async_tests::run_tests(50);
     when_tests::run_tests(50);
     thread_pool_tests::run_tests(50);

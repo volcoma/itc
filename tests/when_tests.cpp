@@ -223,11 +223,34 @@ void run_tests(int iterations)
 
 				sout() << "woke up on future " << result.index << " with result " << f.get();
 			});
-
 			// waiting for test purposes
 			when.wait();
 		}
+        //empty test
+        {
+            auto when = itc::when_all();
+            when.get();
 
+        }
+        {
+            auto when = itc::when_any();
+            auto res = when.get();
+
+            if(res.index != size_t(-1))
+            {
+                throw std::runtime_error("wrong");
+            }
+        }
+        {
+            std::vector<itc::future<void>> fs{};
+            auto when = itc::when_any(std::begin(fs), std::end(fs));
+            auto res = when.get();
+
+            if(res.index != size_t(-1))
+            {
+                throw std::runtime_error("wrong");
+            }
+        }
         {
             itc::thread_pool pool({{itc::priority::category::normal, 2},
                                    {itc::priority::category::high, 1},
