@@ -1,7 +1,7 @@
 #include "thread_pool_tests.h"
-#include "itc/thread_pool.h"
-
 #include "utils.hpp"
+
+#include <itc/thread_pool.h>
 #include <chrono>
 
 namespace thread_pool_tests

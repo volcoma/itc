@@ -85,6 +85,8 @@ class basic_future
 	friend class basic_promise<T>;
 
 public:
+	using state_type = std::shared_ptr<future_state<T>>;
+
 	basic_future() = default;
 	basic_future(basic_future&& rhs) noexcept = default;
 	basic_future& operator=(basic_future&& rhs) noexcept = default;
@@ -155,15 +157,24 @@ public:
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 	}
 
+	const state_type& _internal_get_state() const
+	{
+		return state_;
+	}
+	void _internal_set_state(const state_type& state)
+	{
+		state_ = state;
+	}
+
 protected:
-	basic_future(std::shared_ptr<future_state<T>> state)
+	basic_future(const state_type& state)
 	{
 		state_ = state;
 		state_->rethrow_any_exception();
 	}
 
 	/// The shared state
-	std::shared_ptr<future_state<T>> state_;
+	state_type state_;
 };
 
 template <typename T>
@@ -762,7 +773,7 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable  {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
 		shared_future<T> self(state);
 		return utility::invoke(f, std::move(self));
 	});
@@ -812,7 +823,7 @@ auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable  {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
 		future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});
@@ -860,7 +871,7 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable  {
+	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
 		shared_future<void> self(state);
 		utility::invoke(f, std::move(self));
 	});

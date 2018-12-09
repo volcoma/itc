@@ -1,8 +1,8 @@
 #include "condition_variable_tests.h"
-#include "itc/condition_variable.hpp"
-#include "itc/thread.h"
-
 #include "utils.hpp"
+
+#include <itc/condition_variable.hpp>
+#include <itc/thread.h>
 #include <chrono>
 
 namespace cv_tests

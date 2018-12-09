@@ -1,7 +1,7 @@
 #include "fututre_promise_tests.h"
-#include "itc/future.hpp"
-
 #include "utils.hpp"
+
+#include <itc/future.hpp>
 #include <chrono>
 
 namespace future_promise_tests

@@ -1,7 +1,7 @@
 #include "invoke_tests.h"
-#include "itc/thread.h"
-
 #include "utils.hpp"
+
+#include <itc/thread.h>
 #include <chrono>
 
 namespace invoke_tests
