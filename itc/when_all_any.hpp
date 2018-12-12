@@ -153,10 +153,10 @@ void fill_result_helper(const Context& context, FirstFuture&& f, Futures&&... fs
 template <size_t I, typename Context, typename Future>
 void when_inner_helper(Context context, Future&& f)
 {
-	std::get<I>(context->result) = copy_or_move(std::forward<Future>(f));
 	auto id = this_thread::get_id();
-
-	std::get<I>(context->result).then(id, [context](auto f) {
+	auto& fut = std::get<I>(context->result);
+	fut = copy_or_move(std::forward<Future>(f));
+	fut.then(id, [context](auto f) mutable {
 		std::lock_guard<std::mutex> lock(context->mutex);
 		++context->ready_futures;
 		std::get<I>(context->result) = std::move(f);

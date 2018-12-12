@@ -168,9 +168,8 @@ public:
 
 protected:
 	basic_future(const state_type& state)
+		: state_(state)
 	{
-		state_ = state;
-		state_->rethrow_any_exception();
 	}
 
 	/// The shared state

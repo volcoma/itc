@@ -64,7 +64,14 @@ public:
 	~impl()
 	{
 		clear_all();
-		workers_.clear();
+
+        auto workers = [&]()
+        {
+            std::lock_guard<std::mutex> lock(guard_);
+            return std::move(workers_);
+        }();
+
+		workers.clear();
 	}
 
 	job_id add_job(task& user_job, priority::group group)
