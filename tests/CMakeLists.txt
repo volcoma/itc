@@ -10,8 +10,8 @@ target_link_libraries(${target_name} PUBLIC itc)
 
 set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
 )
 
 include(target_warning_support)
