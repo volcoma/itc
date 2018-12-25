@@ -82,8 +82,10 @@ void init(const init_data& data = {});
 
 //-----------------------------------------------------------------------------
 /// Shutdowns itc and waits for all registered threads to unregister themselves.
+/// Returns the number of threads that were not able to shutdown.
+/// 0 indicates success.
 //-----------------------------------------------------------------------------
-void shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
+int shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
 
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.

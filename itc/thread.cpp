@@ -167,18 +167,18 @@ void init(const init_data& data)
 	log_info_func("Successful.");
 }
 
-void shutdown(const std::chrono::seconds& timeout)
+int shutdown(const std::chrono::seconds& timeout)
 {
 	auto& global_context = get_global_context();
 	if(global_context.init_count == 0)
 	{
 		log_error_func("Shutting down when not initted.");
-		return;
+		return -1;
 	}
 
 	if(--global_context.init_count != 0)
 	{
-		return;
+		return -1;
 	}
 
 	this_thread::unregister_this_thread();
@@ -196,10 +196,12 @@ void shutdown(const std::chrono::seconds& timeout)
 	if(result)
 	{
 		log_info_func("Successful.");
+		return 0;
 	}
 	else
 	{
 		log_info_func("Timed out. Not all registered threads exited.");
+		return static_cast<int>(global_context.contexts.size());
 	}
 }
 
