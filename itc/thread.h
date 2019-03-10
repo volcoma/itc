@@ -274,7 +274,7 @@ bool run_or_invoke(thread::id id, F&& f, Args&&... args)
 	if(this_thread::get_id() == id)
 	{
 		// directly call it
-		utility::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+		std::forward<F>(f)(std::forward<Args>(args)...);
 		return true;
 	}
 	else

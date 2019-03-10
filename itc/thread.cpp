@@ -235,9 +235,11 @@ size_t get_pending_task_count(thread::id id)
 	}
 
 	auto context = it->second;
-	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
-	lock.unlock();
+    lock.unlock();
+
+    std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
+
 	const auto left_to_process = context->processing_tasks.size() - context->processing_idx;
 	const auto pending = context->tasks.size();
 	return left_to_process + pending;
@@ -276,9 +278,10 @@ void notify_for_exit(thread::id id)
 	}
 
 	auto context = it->second;
-	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
-	lock.unlock();
+    lock.unlock();
+
+    std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
 	context->exit = true;
 	context->wakeup = true;
@@ -322,9 +325,10 @@ bool invoke_packaged_task(thread::id id, task& f)
 	}
 
 	auto context = it->second;
-	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
-	lock.unlock();
+    lock.unlock();
+
+	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
 	context->tasks.emplace_back(std::move(f));
 	context->wakeup = true;
@@ -366,6 +370,10 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 		if(task)
 		{
 			task();
+
+            // invoke the tasks's destructor to allow
+            // invoking from it on an unlocked mutex
+            task = {};
 		}
 
 		lock.lock();

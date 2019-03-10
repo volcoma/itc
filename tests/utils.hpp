@@ -6,7 +6,7 @@ struct sout
 {
     ~sout()
     {
-        std::cout << stream.str() << std::endl;
+        std::cout << stream.str() + "\n";
     }
     template<typename T>
     sout& operator<<(T&& val)
