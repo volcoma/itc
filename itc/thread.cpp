@@ -190,8 +190,13 @@ int shutdown(const std::chrono::seconds& timeout)
 	}
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-	auto result = global_context.cleanup_event.wait_for(lock, timeout,
-														[&]() { return global_context.contexts.empty(); });
+    // guard for spurious wakeups
+    auto predicate = [&]() -> bool
+    {
+        return global_context.contexts.empty();
+    };
+
+	auto result = global_context.cleanup_event.wait_for(lock, timeout, predicate);
 
 	if(result)
 	{
@@ -468,13 +473,18 @@ std::cv_status wait_for(const std::chrono::microseconds& wait_duration)
 		return status;
 	}
 
-	local_context.wakeup = false;
+    // guard for spurious wakeups
+    auto predicate = [&]() -> bool
+    {
+        return local_context.wakeup;
+    };
 
-	// guard for spurious wakeups
-	while(!local_context.wakeup && status != std::cv_status::timeout)
-	{
-		status = local_context.wakeup_event.wait_for(lock, wait_duration);
-	}
+    local_context.wakeup = false;
+
+	if(!local_context.wakeup_event.wait_for(lock, wait_duration, predicate))
+    {
+        status = std::cv_status::timeout;
+    }
 
 	local_context.wakeup = false;
 
@@ -506,9 +516,15 @@ void wait()
 		return;
 	}
 
+    // guard for spurious wakeups
+    auto predicate = [&]() -> bool
+    {
+        return local_context.wakeup;
+    };
+
 	local_context.wakeup = false;
 	// guard for spurious wakeups
-	local_context.wakeup_event.wait(lock, [&local_context]() -> bool { return local_context.wakeup; });
+	local_context.wakeup_event.wait(lock, predicate);
 
 	local_context.wakeup = false;
 
