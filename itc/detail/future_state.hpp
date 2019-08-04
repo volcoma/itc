@@ -152,6 +152,8 @@ struct future_state : public basic_state<T>
 
 	decltype(auto) get_value_assuming_ready()
 	{
+        std::unique_lock<std::mutex> lock(this->guard);
+
 		if(value)
 		{
 			return *value;
