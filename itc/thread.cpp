@@ -127,6 +127,9 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 
 void unregister_thread_impl(thread::id id)
 {
+    // unlock of global mutex must happen before
+    // destructor of context
+    std::shared_ptr<thread_context> context{};
 	auto& global_context = get_global_context();
 	std::lock_guard<std::mutex> lock(global_context.mutex);
 	auto it = global_context.contexts.find(id);
@@ -136,7 +139,7 @@ void unregister_thread_impl(thread::id id)
 	}
 
 	// get the context and lock it
-	auto context = it->second;
+	context = it->second;
 	std::lock_guard<std::mutex> local_lock(context->tasks_mutex);
 
 	global_context.id_map.erase(context->native_thread_id);

@@ -56,8 +56,8 @@ public:
 		}
 	}
 
-	impl(impl&&) = default;
-	impl& operator=(impl&&) = default;
+	impl(impl&&) = delete;
+	impl& operator=(impl&&) = delete;
 	impl(const impl&) = delete;
 	impl& operator=(const impl&) = delete;
 
