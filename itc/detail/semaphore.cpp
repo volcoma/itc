@@ -11,13 +11,13 @@ interrupt_token::interrupt_token(bool b)
 {
 }
 
-bool interrupt_token::interrupt() noexcept
+auto interrupt_token::interrupt() noexcept -> bool
 {
 	assert(flag_ != nullptr);
 	return flag_->exchange(true);
 }
 
-bool interrupt_token::is_interrupted() const noexcept
+auto interrupt_token::is_interrupted() const noexcept -> bool
 {
 	assert(flag_ != nullptr);
 	return flag_->load();
@@ -25,7 +25,8 @@ bool interrupt_token::is_interrupted() const noexcept
 
 void semaphore::notify_one() noexcept
 {
-	auto waiter = [&]() {
+	auto waiter = [&]()
+	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
 		if(!waiters_.empty())
@@ -51,7 +52,8 @@ void semaphore::notify_one() noexcept
 
 void semaphore::notify_all() noexcept
 {
-	auto waiters = [&]() {
+	auto waiters = [&]()
+	{
 		std::lock_guard<std::mutex> lock(mutex_);
 
 		return std::move(waiters_);
@@ -101,8 +103,8 @@ void semaphore::wait(const callback& before_wait, const callback& after_wait) co
 	remove_waiter(id);
 }
 
-std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration,
-										const callback& before_wait, const callback& after_wait) const
+auto semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
+							  const callback& after_wait) const -> std::cv_status
 {
 	auto status = std::cv_status::no_timeout;
 	auto now = clock::now();
@@ -151,7 +153,7 @@ std::cv_status semaphore::wait_for_impl(const std::chrono::nanoseconds& timeout_
 	return status;
 }
 
-interrupt_token semaphore::add_waiter(thread::id id) const
+auto semaphore::add_waiter(thread::id id) const -> interrupt_token
 {
 	std::unique_lock<std::mutex> waiting_lock(mutex_);
 

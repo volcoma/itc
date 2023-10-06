@@ -204,11 +204,13 @@ int shutdown(const std::chrono::seconds& timeout)
 	if(result)
 	{
 		log_info_func("Successful.");
+        global_context.config = {};
 		return 0;
 	}
 	else
 	{
 		log_info_func("Timed out. Not all registered threads exited.");
+        global_context.config = {};
 		return static_cast<int>(global_context.contexts.size());
 	}
 }

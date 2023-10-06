@@ -8,23 +8,52 @@ namespace itc
 {
 using job_id = uint64_t;
 
+
+struct job_future_storage
+{
+    job_id id = 0;
+};
+
+template <typename T>
+struct job_shared_future;
+
 // Just a normal future with
 // a job_id member
 template <typename T>
-struct job_future : future<T>
+struct job_future : future<T>, job_future_storage
 {
-	job_future() = default;
-	job_future(job_future&& rhs) noexcept = default;
-	job_future& operator=(job_future&& rhs) noexcept = default;
-	job_future(const job_future&) = delete;
-	job_future& operator=(const job_future&) = delete;
-
-	job_future(future<T>&& rhs) noexcept
+    job_future(future<T>&& rhs) noexcept
 		: future<T>(std::move(rhs))
 	{
 	}
+	job_future() = default;
+	job_future(job_future&& rhs) noexcept = default;
+    job_future(const job_future&) = delete;
+	auto operator=(job_future&& rhs) noexcept -> job_future& = default;
+	auto operator=(const job_future&) -> job_future& = delete;
 
-	job_id id = 0;
+
+    auto share() -> job_shared_future<T>
+    {
+        return job_shared_future<T>(std::move(*this));
+    }
+};
+
+
+template <typename T>
+struct job_shared_future : shared_future<T>, job_future_storage
+{
+    job_shared_future(job_future<T>&& uf) noexcept
+		: shared_future<T>(static_cast<future<T>&&>(uf))
+        , job_future_storage(static_cast<job_future_storage&&>(uf))
+	{
+	}
+    job_shared_future() noexcept = default;
+	job_shared_future(const job_shared_future& sf) = default;
+	job_shared_future(job_shared_future&& sf) noexcept = default;
+
+	auto operator=(const job_shared_future& sf) -> job_shared_future& = default;
+	auto operator=(job_shared_future&& sf) noexcept -> job_shared_future& = default;
 };
 
 template <typename F, typename... Args>
@@ -53,20 +82,20 @@ struct group
 	size_t priority = 0;
 };
 
-inline bool operator==(const group& lhs, const group& rhs)
+inline auto operator==(const group& lhs, const group& rhs) -> bool
 {
 	return lhs.level == rhs.level && lhs.priority == rhs.priority;
 }
 
-inline group normal(size_t priority = 0)
+inline auto normal(size_t priority = 0) -> group
 {
 	return {category::normal, priority};
 }
-inline group high(size_t priority = 0)
+inline auto high(size_t priority = 0) -> group
 {
 	return {category::high, priority};
 }
-inline group critical(size_t priority = 0)
+inline auto critical(size_t priority = 0) -> group
 {
 	return {category::critical, priority};
 }
@@ -89,11 +118,11 @@ public:
 	thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level);
 	thread_pool();
 	thread_pool(thread_pool&&) = default;
-	thread_pool& operator=(thread_pool&&) = default;
+	auto operator=(thread_pool&&) -> thread_pool& = default;
 	~thread_pool();
 
 	thread_pool(const thread_pool&) = delete;
-	thread_pool& operator=(const thread_pool&) = delete;
+	auto operator=(const thread_pool&) -> thread_pool& = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Adds a job for a certain priority level.
@@ -141,7 +170,7 @@ public:
 	void wait_all();
 
 private:
-	job_id add_job(task& job, priority::group group);
+	auto add_job(task& job, priority::group group) -> job_id;
 
 	class impl;
 	/// pimpl idiom

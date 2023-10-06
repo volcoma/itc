@@ -102,7 +102,7 @@ struct basic_state
 	}
 
 	template <typename Rep, typename Per>
-	std::future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
+	auto wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const -> std::future_status
 	{
 		std::unique_lock<std::mutex> lock(guard);
 
@@ -150,7 +150,7 @@ struct future_state : public basic_state<T>
 		this->set_ready(lock, value_status::ready);
 	}
 
-	decltype(auto) get_value_assuming_ready()
+	auto get_value_assuming_ready() -> decltype(auto)
 	{
         std::unique_lock<std::mutex> lock(this->guard);
 

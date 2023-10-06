@@ -3,6 +3,7 @@
 #include "detail/utility/apply.hpp"
 #include "detail/utility/capture.hpp"
 #include "detail/utility/invoke.hpp"
+
 #include "thread.h"
 #include <future>
 
@@ -16,8 +17,9 @@ class shared_future;
 template <typename T>
 class promise;
 
+
 template <typename F, typename... Args>
-using callable_ret_type = std::result_of_t<std::decay_t<F>(Args...)>;
+using callable_ret_type = utility::invoke_result_t<F, Args...>;
 
 template <typename F, typename... Args>
 using async_ret_type = callable_ret_type<F, Args...>;

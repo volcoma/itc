@@ -20,8 +20,8 @@ public:
 	explicit interrupt_token() = default;
 	explicit interrupt_token(bool b);
 
-	bool interrupt() noexcept;
-	bool is_interrupted() const noexcept;
+	auto interrupt() noexcept -> bool;
+	auto is_interrupted() const noexcept -> bool;
 
 private:
 	std::shared_ptr<std::atomic<bool>> flag_;
@@ -36,10 +36,10 @@ public:
 
 	// mutex prevents us from being moveable
 	semaphore(semaphore&& rhs) = delete;
-	semaphore& operator=(semaphore&& rhs) = delete;
+	auto operator=(semaphore&& rhs) -> semaphore& = delete;
 
 	semaphore(const semaphore&) = delete;
-	semaphore& operator=(const semaphore&) = delete;
+	auto operator=(const semaphore&) -> semaphore& = delete;
 
 	//-----------------------------------------------------------------------------
 	/// If any threads are waiting on *this,
@@ -65,8 +65,9 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Rep, class Per>
-	std::cv_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration,
-							const callback& before_wait = nullptr, const callback& after_wait = nullptr) const
+	auto wait_for(const std::chrono::duration<Rep, Per>& timeout_duration,
+				  const callback& before_wait = nullptr, const callback& after_wait = nullptr) const
+		-> std::cv_status
 	{
 		return wait_for_impl(timeout_duration, before_wait, after_wait);
 	}
@@ -79,9 +80,9 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <class Clock, class Duration>
-	std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time,
-							  const callback& before_wait = nullptr,
-							  const callback& after_wait = nullptr) const
+	auto wait_until(const std::chrono::time_point<Clock, Duration>& abs_time,
+					const callback& before_wait = nullptr, const callback& after_wait = nullptr) const
+		-> std::cv_status
 	{
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch(), before_wait,
 						after_wait);
@@ -94,10 +95,10 @@ protected:
 		thread::id id;
 	};
 
-	std::cv_status wait_for_impl(const std::chrono::nanoseconds& timeout_duration,
-								 const callback& before_wait, const callback& after_wait) const;
+	auto wait_for_impl(const std::chrono::nanoseconds& timeout_duration, const callback& before_wait,
+					   const callback& after_wait) const -> std::cv_status;
 
-	interrupt_token add_waiter(thread::id id) const;
+	auto add_waiter(thread::id id) const -> interrupt_token;
 
 	void remove_waiter(thread::id id) const;
 

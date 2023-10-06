@@ -22,6 +22,7 @@ struct unwrap_refwrapper<std::reference_wrapper<T>>
 template <class T>
 using special_decay_t = typename unwrap_refwrapper<typename std::decay<T>::type>::type;
 
+
 template <typename... Args>
 class move_on_copy_t
 {
@@ -42,11 +43,11 @@ public:
 	{
 	}
 
-	const T& get() const
+	auto get() const -> const T&
 	{
 		return value_;
 	}
-	T& get()
+	auto get() -> T&
 	{
 		return value_;
 	}
@@ -56,8 +57,9 @@ private:
 };
 
 template <typename... Args>
-move_on_copy_t<Args...> capture(Args&&... args) noexcept
+auto capture(Args&&... args) noexcept -> move_on_copy_t<Args...>
 {
 	return {std::forward<Args>(args)...};
 }
+
 } // namespace itc
