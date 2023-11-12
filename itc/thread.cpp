@@ -73,6 +73,15 @@ void name_thread(std::thread& th, const std::string& name)
 	}
 }
 
+void on_thread_start(const std::string& name)
+{
+	const auto& global_context = get_global_context();
+	if(global_context.config.on_thread_start && !name.empty())
+	{
+		global_context.config.on_thread_start(name);
+	}
+}
+
 void log_info(const std::string& name)
 {
 	const auto& global_context = get_global_context();
@@ -95,7 +104,8 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 {
 	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
-	auto id = [&]() {
+	auto id = [&]()
+	{
 		auto tidit = global_context.id_map.find(native_thread_id);
 		if(tidit != global_context.id_map.end())
 		{
@@ -116,10 +126,11 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 	}
 
 	auto local_context = std::make_shared<thread_context>();
-	local_context->tasks.reserve(16);
+	local_context->tasks.reserve(global_context.config.tasks_capacity.default_reserved_tasks);
 	local_context->native_thread_id = native_thread_id;
 	local_context->id = id;
-	local_context->capacity_shrink_threashold = global_context.config.capacity_shrink_threashold;
+	local_context->capacity_shrink_threashold =
+		global_context.config.tasks_capacity.capacity_shrink_threashold;
 	global_context.id_map[native_thread_id] = id;
 	global_context.contexts.emplace(id, local_context);
 	return local_context;
@@ -127,9 +138,9 @@ std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thre
 
 void unregister_thread_impl(thread::id id)
 {
-    // unlock of global mutex must happen before
-    // destructor of context
-    std::shared_ptr<thread_context> context{};
+	// unlock of global mutex must happen before
+	// destructor of context
+	std::shared_ptr<thread_context> context{};
 	auto& global_context = get_global_context();
 	std::lock_guard<std::mutex> lock(global_context.mutex);
 	auto it = global_context.contexts.find(id);
@@ -193,24 +204,21 @@ int shutdown(const std::chrono::seconds& timeout)
 	}
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 
-    // guard for spurious wakeups
-    auto predicate = [&]() -> bool
-    {
-        return global_context.contexts.empty();
-    };
+	// guard for spurious wakeups
+	auto predicate = [&]() -> bool { return global_context.contexts.empty(); };
 
 	auto result = global_context.cleanup_event.wait_for(lock, timeout, predicate);
 
 	if(result)
 	{
 		log_info_func("Successful.");
-        global_context.config = {};
+		global_context.config = {};
 		return 0;
 	}
 	else
 	{
 		log_info_func("Timed out. Not all registered threads exited.");
-        global_context.config = {};
+		global_context.config = {};
 		return static_cast<int>(global_context.contexts.size());
 	}
 }
@@ -246,9 +254,9 @@ size_t get_pending_task_count(thread::id id)
 
 	auto context = it->second;
 
-    lock.unlock();
+	lock.unlock();
 
-    std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
+	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
 	const auto left_to_process = context->processing_tasks.size() - context->processing_idx;
 	const auto pending = context->tasks.size();
@@ -289,19 +297,13 @@ void notify_for_exit(thread::id id)
 
 	auto context = it->second;
 
-    lock.unlock();
+	lock.unlock();
 
-    std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
+	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
 	context->exit = true;
 	context->wakeup = true;
 	context->wakeup_event.notify_all();
-}
-
-thread::id register_thread(std::thread::id id)
-{
-	auto ctx = register_thread_impl(id);
-	return ctx->id;
 }
 
 void notify(thread::id id)
@@ -336,7 +338,7 @@ bool invoke_packaged_task(thread::id id, task& f)
 
 	auto context = it->second;
 
-    lock.unlock();
+	lock.unlock();
 
 	std::lock_guard<std::mutex> remote_lock(context->tasks_mutex);
 
@@ -381,9 +383,9 @@ bool process_one(std::unique_lock<std::mutex>& lock)
 		{
 			task();
 
-            // invoke the tasks's destructor to allow
-            // invoking from it on an unlocked mutex
-            task = {};
+			// invoke the tasks's destructor to allow
+			// invoking from it on an unlocked mutex
+			task = {};
 		}
 
 		lock.lock();
@@ -478,18 +480,15 @@ std::cv_status wait_for(const std::chrono::microseconds& wait_duration)
 		return status;
 	}
 
-    // guard for spurious wakeups
-    auto predicate = [&]() -> bool
-    {
-        return local_context.wakeup;
-    };
+	// guard for spurious wakeups
+	auto predicate = [&]() -> bool { return local_context.wakeup; };
 
-    local_context.wakeup = false;
+	local_context.wakeup = false;
 
 	if(!local_context.wakeup_event.wait_for(lock, wait_duration, predicate))
-    {
-        status = std::cv_status::timeout;
-    }
+	{
+		status = std::cv_status::timeout;
+	}
 
 	local_context.wakeup = false;
 
@@ -521,11 +520,8 @@ void wait()
 		return;
 	}
 
-    // guard for spurious wakeups
-    auto predicate = [&]() -> bool
-    {
-        return local_context.wakeup;
-    };
+	// guard for spurious wakeups
+	auto predicate = [&]() -> bool { return local_context.wakeup; };
 
 	local_context.wakeup = false;
 	// guard for spurious wakeups
@@ -599,20 +595,29 @@ uint32_t get_depth()
 	return local_context.processing_stack_depth;
 }
 
+bool is_registered()
+{
+	return has_local_context();
+}
+
 } // namespace this_thread
 
 thread make_thread(const std::string& name)
 {
-	thread t([]() {
-		this_thread::register_this_thread();
-
-		while(!this_thread::notified_for_exit())
+	thread t(
+		[name]()
 		{
-			this_thread::wait();
-		}
+			this_thread::register_this_thread();
 
-		this_thread::unregister_this_thread();
-	});
+			on_thread_start(name);
+
+			while(!this_thread::notified_for_exit())
+			{
+				this_thread::wait();
+			}
+
+			this_thread::unregister_this_thread();
+		});
 
 	name_thread(t, name);
 
@@ -637,10 +642,27 @@ void thread::join()
 
 void thread::register_this()
 {
-	id_ = register_thread(std::thread::get_id());
+	auto context = register_thread_impl(std::thread::get_id());
+	id_ = context->id;
 }
 
 thread::thread() noexcept = default;
+
+void thread::swap(thread& th) noexcept
+{
+	std::swap(static_cast<std::thread&>(*this), static_cast<std::thread&>(th));
+	std::swap(id_, th.id_);
+}
+
+thread& thread::operator=(thread&& th) noexcept
+{
+	if(joinable())
+	{
+		join();
+	}
+	swap(th);
+	return *this;
+}
 
 thread::~thread()
 {
@@ -648,6 +670,19 @@ thread::~thread()
 	{
 		join();
 	}
+}
+
+bool set_thread_config(thread::id id, tasks_capacity_config config)
+{
+	return itc::run_or_invoke(id,
+							  [config]()
+							  {
+								  auto& local_context = get_local_context();
+								  std::lock_guard<std::mutex> lock(local_context.tasks_mutex);
+								  local_context.tasks.reserve(config.default_reserved_tasks);
+								  local_context.capacity_shrink_threashold =
+									  config.capacity_shrink_threashold;
+							  });
 }
 
 } // namespace itc

@@ -1,10 +1,10 @@
 #include "thread_pool.h"
 
-#include <cassert>
 #include <map>
 #include <mutex>
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace itc
@@ -37,8 +37,9 @@ class thread_pool::impl
 	using priority_queues = std::map<priority::category, jobs_queue>;
 
 public:
-	impl(const std::map<priority::category, size_t>& workers_per_priority_level)
+	impl(const std::map<priority::category, size_t>& workers_per_priority_level, tasks_capacity_config config)
 	{
+		jobs_.reserve(config.default_reserved_tasks);
 		for(const auto& kvp : workers_per_priority_level)
 		{
 			auto level = kvp.first;
@@ -47,10 +48,13 @@ public:
 			{
 				job_priority_queues_[level];
 				auto& workers_for_level = workers_[level];
+				workers_for_level.reserve(count);
 				for(size_t i = 0; i < count; ++i)
 				{
 					std::string name = "pool_w:" + std::to_string(unsigned(level)) + ":" + std::to_string(i);
 					workers_for_level.emplace_back(make_thread(name));
+					auto& task = workers_for_level.back();
+					itc::set_thread_config(task.get_id(), config);
 				}
 			}
 		}
@@ -65,11 +69,11 @@ public:
 	{
 		clear_all();
 
-        auto workers = [&]()
-        {
-            std::lock_guard<std::mutex> lock(guard_);
-            return std::move(workers_);
-        }();
+		auto workers = [&]()
+		{
+			std::lock_guard<std::mutex> lock(guard_);
+			return std::move(workers_);
+		}();
 
 		workers.clear();
 	}
@@ -111,25 +115,37 @@ public:
 		add_job_handle(job.handle);
 	}
 
-	void clear(job_id id)
+	void clear(job_id id, bool check_callable)
 	{
 		std::lock_guard<std::mutex> lock(guard_);
-		jobs_.erase(id);
+		auto it = jobs_.find(id);
+		if(it != jobs_.end())
+		{
+			if(check_callable)
+			{
+				if(it->second.callable)
+				{
+					jobs_.erase(id);
+				}
+			}
+			else
+			{
+				jobs_.erase(id);
+			}
+		}
 	}
 
 	void clear_all()
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		jobs_.clear();
-		for(auto& queue : job_priority_queues_)
-		{
-			queue.second = jobs_queue{};
-		}
+		job_priority_queues_.clear();
 	}
 
 	void wait(job_id id)
 	{
-		auto f = [this, id]() {
+		auto f = [this, id]()
+		{
 			std::lock_guard<std::mutex> lock(guard_);
 			auto it = jobs_.find(id);
 			if(it == jobs_.end())
@@ -160,6 +176,12 @@ public:
 		{
 			future.wait();
 		}
+	}
+
+	size_t get_jobs_count() const
+	{
+		std::lock_guard<std::mutex> lock(guard_);
+		return jobs_.size();
 	}
 
 private:
@@ -247,17 +269,16 @@ private:
 		if(user_job)
 		{
 			user_job();
+			// clear after the call so that the task
+			// is waitable via the pool.
+			clear(id, false);
 		}
-
-		// clear after the call so that the task
-		// is waitable via the pool.
-		clear(id);
 	}
 
-	std::mutex guard_;
+	mutable std::mutex guard_;
 	job_id free_id_ = 1;
 	priority_workers workers_;
-	std::map<job_id, job_info> jobs_;
+	std::unordered_map<job_id, job_info> jobs_;
 	priority_queues job_priority_queues_;
 };
 
@@ -266,9 +287,10 @@ thread_pool::thread_pool()
 	: thread_pool({{priority::category::normal, thread::hardware_concurrency()}})
 {
 }
-thread_pool::thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level)
+thread_pool::thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level,
+						 tasks_capacity_config config)
 {
-	impl_ = std::make_unique<impl>(workers_per_priority_level);
+	impl_ = std::make_unique<impl>(workers_per_priority_level, config);
 }
 
 thread_pool::~thread_pool() = default;
@@ -295,12 +317,17 @@ void thread_pool::wait(job_id id)
 
 void thread_pool::stop(job_id id)
 {
-	impl_->clear(id);
+	impl_->clear(id, true);
 }
 
 void thread_pool::wait_all()
 {
 	impl_->wait_all();
+}
+
+size_t thread_pool::get_jobs_count() const
+{
+	return impl_->get_jobs_count();
 }
 
 } // namespace itc

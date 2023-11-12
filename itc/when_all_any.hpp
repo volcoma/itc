@@ -64,21 +64,24 @@ void when_any_inner_helper(Context context)
 	using ith_future_type = std::decay_t<decltype(std::get<I>(context->result.futures))>;
 	auto id = this_thread::get_id();
 
-	std::get<I>(context->result.futures).then(id, [context](ith_future_type f) {
-		std::lock_guard<std::mutex> lock(context->mutex);
-		if(!context->ready)
-		{
-			context->ready = true;
-			context->result.index = I;
-			std::get<I>(context->result.futures) = std::move(f);
-			if(context->processed == context->total && !context->result_moved)
-			{
-				context->recover_input_futures();
-				context->p.set_value(std::move(context->result));
-				context->result_moved = true;
-			}
-		}
-	});
+	std::get<I>(context->result.futures)
+		.then(id,
+			  [context](ith_future_type f)
+			  {
+				  std::lock_guard<std::mutex> lock(context->mutex);
+				  if(!context->ready)
+				  {
+					  context->ready = true;
+					  context->result.index = I;
+					  std::get<I>(context->result.futures) = std::move(f);
+					  if(context->processed == context->total && !context->result_moved)
+					  {
+						  context->recover_input_futures();
+						  context->p.set_value(std::move(context->result));
+						  context->result_moved = true;
+					  }
+				  }
+			  });
 }
 
 template <size_t I, size_t S>
@@ -153,18 +156,21 @@ void fill_result_helper(const Context& context, FirstFuture&& f, Futures&&... fs
 template <size_t I, typename Context, typename Future>
 void when_inner_helper(Context context, Future&& f)
 {
+	std::get<I>(context->result) = copy_or_move(std::forward<Future>(f));
 	auto id = this_thread::get_id();
-	auto& fut = std::get<I>(context->result);
-	fut = copy_or_move(std::forward<Future>(f));
-	fut.then(id, [context](auto f) mutable {
-		std::lock_guard<std::mutex> lock(context->mutex);
-		++context->ready_futures;
-		std::get<I>(context->result) = std::move(f);
-		if(context->ready_futures == context->total_futures)
-		{
-			context->p.set_value(std::move(context->result));
-		}
-	});
+
+	std::get<I>(context->result)
+		.then(id,
+			  [context](auto f)
+			  {
+				  std::lock_guard<std::mutex> lock(context->mutex);
+				  ++context->ready_futures;
+				  std::get<I>(context->result) = std::move(f);
+				  if(context->ready_futures == context->total_futures)
+				  {
+					  context->p.set_value(std::move(context->result));
+				  }
+			  });
 }
 
 template <size_t I, typename Context>
@@ -205,7 +211,7 @@ struct visit_impl<0>
 		throw std::runtime_error("bad field index");
 	}
 };
-}
+} // namespace detail
 
 template <typename InputIt>
 auto when_all(InputIt first, InputIt last)
@@ -235,15 +241,18 @@ auto when_all(InputIt first, InputIt last)
 	for(; first != last; ++first, ++index)
 	{
 		shared_context->result.emplace_back(copy_or_move(*first));
-		shared_context->result[index].then(id, [shared_context, index](auto f) {
-			std::lock_guard<std::mutex> lock(shared_context->mutex);
-			shared_context->result[index] = std::move(f);
-			++shared_context->ready_futures;
-			if(shared_context->ready_futures == shared_context->total_futures)
+		shared_context->result[index].then(
+			id,
+			[shared_context, index](auto f)
 			{
-				shared_context->p.set_value(std::move(shared_context->result));
-			}
-		});
+				std::lock_guard<std::mutex> lock(shared_context->mutex);
+				shared_context->result[index] = std::move(f);
+				++shared_context->ready_futures;
+				if(shared_context->ready_futures == shared_context->total_futures)
+				{
+					shared_context->p.set_value(std::move(shared_context->result));
+				}
+			});
 	}
 
 	return result_future;
@@ -325,23 +334,24 @@ auto when_any(InputIt first, InputIt last)
 	{
 		shared_context->result.futures.emplace_back(copy_or_move(*first));
 		shared_context->states.emplace_back(shared_context->result.futures[index]._internal_get_state());
-		shared_context->result.futures[index].then(id, [shared_context, index](auto f) {
-
-			std::lock_guard<std::mutex> lock(shared_context->mutex);
-			if(!shared_context->ready)
+		shared_context->result.futures[index].then(
+			id,
+			[shared_context, index](auto f)
 			{
-				shared_context->result.index = index;
-				shared_context->ready = true;
-				shared_context->result.futures[index] = std::move(f);
-				if(shared_context->processed == shared_context->total && !shared_context->promise_set)
+				std::lock_guard<std::mutex> lock(shared_context->mutex);
+				if(!shared_context->ready)
 				{
-					shared_context->recover_input_futures();
-					shared_context->p.set_value(std::move(shared_context->result));
-					shared_context->promise_set = true;
+					shared_context->result.index = index;
+					shared_context->ready = true;
+					shared_context->result.futures[index] = std::move(f);
+					if(shared_context->processed == shared_context->total && !shared_context->promise_set)
+					{
+						shared_context->recover_input_futures();
+						shared_context->p.set_value(std::move(shared_context->result));
+						shared_context->promise_set = true;
+					}
 				}
-			}
-
-		});
+			});
 		++shared_context->processed;
 	}
 

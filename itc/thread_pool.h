@@ -8,10 +8,9 @@ namespace itc
 {
 using job_id = uint64_t;
 
-
 struct job_future_storage
 {
-    job_id id = 0;
+	job_id id = 0;
 };
 
 template <typename T>
@@ -22,38 +21,46 @@ struct job_shared_future;
 template <typename T>
 struct job_future : future<T>, job_future_storage
 {
-    job_future(future<T>&& rhs) noexcept
+	job_future(future<T>&& rhs) noexcept
 		: future<T>(std::move(rhs))
 	{
 	}
 	job_future() = default;
 	job_future(job_future&& rhs) noexcept = default;
-    job_future(const job_future&) = delete;
+	job_future(const job_future&) = delete;
 	auto operator=(job_future&& rhs) noexcept -> job_future& = default;
 	auto operator=(const job_future&) -> job_future& = delete;
 
+	auto share() -> job_shared_future<T>
+	{
+		return job_shared_future<T>(std::move(*this));
+	}
 
-    auto share() -> job_shared_future<T>
-    {
-        return job_shared_future<T>(std::move(*this));
-    }
+	auto use_count() const noexcept -> decltype(auto)
+	{
+		return this->state_.use_count();
+	}
 };
-
 
 template <typename T>
 struct job_shared_future : shared_future<T>, job_future_storage
 {
-    job_shared_future(job_future<T>&& uf) noexcept
+	job_shared_future(job_future<T>&& uf) noexcept
 		: shared_future<T>(static_cast<future<T>&&>(uf))
-        , job_future_storage(static_cast<job_future_storage&&>(uf))
+		, job_future_storage(static_cast<job_future_storage&&>(uf))
 	{
 	}
-    job_shared_future() noexcept = default;
+	job_shared_future() noexcept = default;
 	job_shared_future(const job_shared_future& sf) = default;
 	job_shared_future(job_shared_future&& sf) noexcept = default;
 
 	auto operator=(const job_shared_future& sf) -> job_shared_future& = default;
 	auto operator=(job_shared_future&& sf) noexcept -> job_shared_future& = default;
+
+	auto use_count() const noexcept -> decltype(auto)
+	{
+		return this->state_.use_count();
+	}
 };
 
 template <typename F, typename... Args>
@@ -115,7 +122,8 @@ public:
 	///					       {itc::priority::category::high, 1},
 	///					       {itc::priority::category::critical, 1}});
 	//-----------------------------------------------------------------------------
-	thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level);
+	thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level,
+				tasks_capacity_config config = {});
 	thread_pool();
 	thread_pool(thread_pool&&) = default;
 	auto operator=(thread_pool&&) -> thread_pool& = default;
@@ -168,6 +176,11 @@ public:
 	/// Blocks until all active jobs are ready.
 	//-----------------------------------------------------------------------------
 	void wait_all();
+
+	//-----------------------------------------------------------------------------
+	/// Returns the number of jobs left.
+	//-----------------------------------------------------------------------------
+	size_t get_jobs_count() const;
 
 private:
 	auto add_job(task& job, priority::group group) -> job_id;

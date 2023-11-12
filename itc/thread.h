@@ -19,9 +19,11 @@ class thread : public std::thread
 public:
 	using id = std::uint64_t;
 
+	void swap(thread& th) noexcept;
+
 	thread() noexcept;
 	thread(thread&&) noexcept = default;
-	thread& operator=(thread&&) noexcept = default;
+	thread& operator=(thread&& th) noexcept;
 
 	template <typename F, typename... Args>
 	explicit thread(F&& f, Args&&... args)
@@ -67,12 +69,19 @@ using shared_thread = std::shared_ptr<thread>;
 using task = std::function<void()>;
 using clock = std::chrono::steady_clock;
 
+struct tasks_capacity_config
+{
+	std::size_t default_reserved_tasks{16};
+	std::size_t capacity_shrink_threashold{256};
+};
+
 struct init_data
 {
-	std::function<void(const std::string&)> log_info = nullptr;
-	std::function<void(const std::string&)> log_error = nullptr;
-	std::function<void(std::thread&, const std::string&)> set_thread_name = nullptr;
-	std::size_t capacity_shrink_threashold = 256;
+	std::function<void(const std::string&)> log_info{};
+	std::function<void(const std::string&)> log_error{};
+	std::function<void(std::thread&, const std::string&)> set_thread_name{};
+	std::function<void(const std::string&)> on_thread_start{};
+	tasks_capacity_config tasks_capacity{};
 };
 
 //-----------------------------------------------------------------------------
@@ -112,12 +121,6 @@ void notify(thread::id id);
 void notify_for_exit(thread::id id);
 
 //-----------------------------------------------------------------------------
-/// Registers a thread by the native thread id.
-/// Returns the unique generated id that can be used with the rest of the api.
-//-----------------------------------------------------------------------------
-thread::id register_thread(std::thread::id id);
-
-//-----------------------------------------------------------------------------
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
 //-----------------------------------------------------------------------------
@@ -146,7 +149,7 @@ namespace main_thread
 /// Retrieves the main thread id.
 //-----------------------------------------------------------------------------
 thread::id get_id();
-}
+} // namespace main_thread
 
 //-----------------------------------------------------------------------------
 /// this_thread namespace describe actions you can do
@@ -228,6 +231,8 @@ void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 /// Gets the current processing stack depth of this thread
 //-----------------------------------------------------------------------------
 std::uint32_t get_depth();
+bool is_registered();
+
 } // namespace this_thread
 } // namespace itc
 
@@ -244,11 +249,9 @@ task package_simple_task(F&& f, Args&&... args)
 {
 	return [callable = capture(std::forward<F>(f)), params = capture(std::forward<Args>(args)...)]() mutable
 	{
-		utility::apply(
-			[&callable](std::decay_t<Args>&... args) {
-				std::forward<F>(std::get<0>(callable.get()))(std::forward<Args>(args)...);
-			},
-			params.get());
+		utility::apply([&callable](std::decay_t<Args>&... args)
+					   { std::forward<F>(std::get<0>(callable.get()))(std::forward<Args>(args)...); },
+					   params.get());
 	};
 }
 
@@ -282,6 +285,9 @@ bool run_or_invoke(thread::id id, F&& f, Args&&... args)
 		return invoke(id, std::forward<F>(f), std::forward<Args>(args)...);
 	}
 }
+
+// set thread config if you want to use different capasity sizes than default from init
+bool set_thread_config(thread::id id, tasks_capacity_config config);
 
 namespace this_thread
 {
