@@ -180,7 +180,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the number of jobs left.
 	//-----------------------------------------------------------------------------
-	size_t get_jobs_count() const;
+	auto get_jobs_count() const -> size_t;
 
 private:
 	auto add_job(task& job, priority::group group) -> job_id;

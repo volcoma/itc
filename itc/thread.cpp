@@ -47,7 +47,7 @@ program_context global_data;
 thread_local thread_context* local_data = nullptr;
 } // namespace
 
-program_context& get_global_context()
+auto get_global_context() -> program_context&
 {
 	return global_data;
 }
@@ -55,11 +55,11 @@ void set_local_context(thread_context* context)
 {
 	local_data = context;
 }
-bool has_local_context()
+auto has_local_context() -> bool
 {
 	return !(local_data == nullptr);
 }
-thread_context& get_local_context()
+auto get_local_context() -> thread_context&
 {
 	return *local_data;
 }
@@ -100,7 +100,7 @@ void log_error(const std::string& name)
 	}
 }
 
-std::shared_ptr<thread_context> register_thread_impl(std::thread::id native_thread_id)
+auto register_thread_impl(std::thread::id native_thread_id) -> std::shared_ptr<thread_context>
 {
 	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
@@ -181,7 +181,7 @@ void init(const init_data& data)
 	log_info_func("Successful.");
 }
 
-int shutdown(const std::chrono::seconds& timeout)
+auto shutdown(const std::chrono::seconds& timeout) -> int
 {
 	auto& global_context = get_global_context();
 	if(global_context.init_count == 0)
@@ -223,7 +223,7 @@ int shutdown(const std::chrono::seconds& timeout)
 	}
 }
 
-std::vector<thread::id> get_all_registered_threads()
+auto get_all_registered_threads() -> std::vector<thread::id>
 {
 	std::vector<thread::id> result;
 	auto& global_context = get_global_context();
@@ -236,7 +236,7 @@ std::vector<thread::id> get_all_registered_threads()
 	return result;
 }
 
-size_t get_pending_task_count(thread::id id)
+auto get_pending_task_count(thread::id id) -> size_t
 {
 	if(id == invalid_id())
 	{
@@ -263,12 +263,12 @@ size_t get_pending_task_count(thread::id id)
 	return left_to_process + pending;
 }
 
-bool has_tasks_to_process(const thread_context& context)
+auto has_tasks_to_process(const thread_context& context) -> bool
 {
 	return context.processing_idx < context.processing_tasks.size();
 }
 
-bool prepare_tasks(thread_context& context)
+auto prepare_tasks(thread_context& context) -> bool
 {
 	if(!has_tasks_to_process(context) && !context.tasks.empty())
 	{
@@ -314,8 +314,8 @@ void notify(thread::id id)
 namespace detail
 {
 // this function exists to avoid extra moves of the functor
-// via the run_or_invoke
-bool invoke_packaged_task(thread::id id, task& f)
+// via the dispatch
+auto invoke_packaged_task(thread::id id, task& f) -> bool
 {
 	if(f == nullptr)
 	{
@@ -350,7 +350,7 @@ bool invoke_packaged_task(thread::id id, task& f)
 } // namespace detail
 namespace main_thread
 {
-thread::id get_id()
+auto get_id() -> thread::id
 {
 	const auto& global_context = get_global_context();
 	return global_context.main_thread_id;
@@ -360,7 +360,7 @@ namespace this_thread
 {
 namespace detail
 {
-bool process_one(std::unique_lock<std::mutex>& lock)
+auto process_one(std::unique_lock<std::mutex>& lock) -> bool
 {
 	if(!has_local_context())
 	{
@@ -456,7 +456,7 @@ void process()
 	process_all(lock);
 }
 
-std::cv_status wait_for(const std::chrono::microseconds& wait_duration)
+auto wait_for(const std::chrono::microseconds& wait_duration) -> std::cv_status
 {
 	auto status = std::cv_status::no_timeout;
 
@@ -545,7 +545,7 @@ void unregister_this_thread()
 	set_local_context(nullptr);
 }
 
-bool notified_for_exit()
+auto notified_for_exit() -> bool
 {
 	if(!has_local_context())
 	{
@@ -569,7 +569,7 @@ void wait()
 	detail::wait();
 }
 
-thread::id get_id()
+auto get_id() -> thread::id
 {
 	if(!has_local_context())
 	{
@@ -582,7 +582,7 @@ thread::id get_id()
 	return local_context.id;
 }
 
-uint32_t get_depth()
+auto get_depth() -> uint32_t
 {
 	if(!has_local_context())
 	{
@@ -595,14 +595,14 @@ uint32_t get_depth()
 	return local_context.processing_stack_depth;
 }
 
-bool is_registered()
+auto is_registered() -> bool
 {
 	return has_local_context();
 }
 
 } // namespace this_thread
 
-thread make_thread(const std::string& name)
+auto make_thread(const std::string& name) -> thread
 {
 	thread t(
 		[name]()
@@ -624,12 +624,12 @@ thread make_thread(const std::string& name)
 	return t;
 }
 
-shared_thread make_shared_thread(const std::string& name)
+auto make_shared_thread(const std::string& name) -> shared_thread
 {
 	return std::make_shared<thread>(make_thread(name));
 }
 
-thread::id thread::get_id() const
+auto thread::get_id() const -> thread::id
 {
 	return id_;
 }
@@ -672,17 +672,16 @@ thread::~thread()
 	}
 }
 
-bool set_thread_config(thread::id id, tasks_capacity_config config)
+auto set_thread_config(thread::id id, tasks_capacity_config config) -> bool
 {
-	return itc::run_or_invoke(id,
-							  [config]()
-							  {
-								  auto& local_context = get_local_context();
-								  std::lock_guard<std::mutex> lock(local_context.tasks_mutex);
-								  local_context.tasks.reserve(config.default_reserved_tasks);
-								  local_context.capacity_shrink_threashold =
-									  config.capacity_shrink_threashold;
-							  });
+	return itc::dispatch(id,
+						 [config]()
+						 {
+							 auto& local_context = get_local_context();
+							 std::lock_guard<std::mutex> lock(local_context.tasks_mutex);
+							 local_context.tasks.reserve(config.default_reserved_tasks);
+							 local_context.capacity_shrink_threashold = config.capacity_shrink_threashold;
+						 });
 }
 
 } // namespace itc

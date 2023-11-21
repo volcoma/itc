@@ -128,13 +128,13 @@ void fill_result_helper(const Context& /*unused*/)
 }
 
 template <typename T, std::enable_if_t<std::is_copy_constructible<T>::value>* = nullptr>
-decltype(auto) copy_or_move(T&& v)
+auto copy_or_move(T&& v) -> decltype(auto)
 {
 	return std::forward<T>(v);
 }
 
 template <typename T, std::enable_if_t<!std::is_copy_constructible<T>::value>* = nullptr>
-decltype(auto) copy_or_move(T&& v)
+auto copy_or_move(T&& v) -> decltype(auto)
 {
 	return std::forward<T>(v);
 }

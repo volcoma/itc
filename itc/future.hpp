@@ -17,9 +17,8 @@ class shared_future;
 template <typename T>
 class promise;
 
-
 template <typename F, typename... Args>
-using callable_ret_type = utility::invoke_result_t<F, Args...>;
+using callable_ret_type = utility::invoke_result_t<std::decay_t<F>, Args...>;
 
 template <typename F, typename... Args>
 using async_ret_type = callable_ret_type<F, Args...>;
@@ -59,21 +58,21 @@ auto async(F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>;
 /// and holds the given value
 //-----------------------------------------------------------------------------
 template <typename T>
-future<T> make_ready_future(T&& value);
+auto make_ready_future(T&& value) -> future<T>;
 
 //-----------------------------------------------------------------------------
 /// produces a future that is ready immediately
 /// and holds the given exception
 //-----------------------------------------------------------------------------
 template <class T>
-future<T> make_exceptional_future(std::exception_ptr ex);
+auto make_exceptional_future(std::exception_ptr ex) -> future<T>;
 
 //-----------------------------------------------------------------------------
 /// produces a future that is ready immediately
 /// and holds the given exception
 //-----------------------------------------------------------------------------
 template <class T, class E>
-future<T> make_exceptional_future(E ex);
+auto make_exceptional_future(E ex) -> future<T>;
 
 namespace detail
 {
@@ -91,17 +90,17 @@ public:
 
 	basic_future() = default;
 	basic_future(basic_future&& rhs) noexcept = default;
-	basic_future& operator=(basic_future&& rhs) noexcept = default;
+	auto operator=(basic_future&& rhs) noexcept -> basic_future& = default;
 
 	basic_future(const basic_future&) = default;
-	basic_future& operator=(const basic_future&) = default;
+	auto operator=(const basic_future&) -> basic_future& = default;
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the future has an associated shared state.
 	/// This is the case only for futures that were not default-constructed or
 	/// moved from (i.e. returned by promise::get_future()
 	//-----------------------------------------------------------------------------
-	bool valid() const
+	auto valid() const -> bool
 	{
 		return state_ != nullptr;
 	}
@@ -110,7 +109,7 @@ public:
 	/// Checks whether the result is ready. If either a value or
 	/// exception was set this will return true.
 	//-----------------------------------------------------------------------------
-	bool is_ready() const
+	auto is_ready() const -> bool
 	{
 		check_state(state_);
 
@@ -120,7 +119,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Checks whether an error occurred.
 	//-----------------------------------------------------------------------------
-	bool has_error() const
+	auto has_error() const -> bool
 	{
 		check_state(state_);
 
@@ -146,7 +145,7 @@ public:
 	/// due to scheduling or resource contention delays.
 	//-----------------------------------------------------------------------------
 	template <typename Rep, typename Per>
-	std::future_status wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const
+	auto wait_for(const std::chrono::duration<Rep, Per>& timeout_duration) const -> std::future_status
 	{
 		check_state(state_);
 
@@ -154,12 +153,12 @@ public:
 	}
 
 	template <typename Clock, typename Duration>
-	std::future_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const
+	auto wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) const -> std::future_status
 	{
 		return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 	}
 
-	const state_type& _internal_get_state() const
+	auto _internal_get_state() const -> const state_type&
 	{
 		return state_;
 	}
@@ -184,10 +183,10 @@ class basic_promise
 public:
 	basic_promise() = default;
 	basic_promise(basic_promise&& rhs) noexcept = default;
-	basic_promise& operator=(basic_promise&& rhs) noexcept = default;
+	auto operator=(basic_promise&& rhs) noexcept -> basic_promise& = default;
 
 	basic_promise(const basic_promise&) = delete;
-	basic_promise& operator=(const basic_promise&) = delete;
+	auto operator=(const basic_promise&) -> basic_promise& = delete;
 
 	~basic_promise()
 	{
@@ -220,7 +219,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a future associated with the promised result
 	//-----------------------------------------------------------------------------
-	future<T> get_future()
+	auto get_future() -> future<T>
 	{
 		check_retrieved_flag();
 
@@ -289,10 +288,10 @@ class future : public detail::basic_future<T>
 public:
 	future() = default;
 	future(future&& rhs) noexcept = default;
-	future& operator=(future&& rhs) noexcept = default;
+	auto operator=(future&& rhs) noexcept -> future& = default;
 
 	future(const future&) = delete;
-	future& operator=(const future&) = delete;
+	auto operator=(const future&) -> future& = delete;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -302,7 +301,7 @@ public:
 	/// function. Any shared state is released. valid() is false after a call to
 	/// this method.
 	//-----------------------------------------------------------------------------
-	T get()
+	auto get() -> T
 	{
 		this->wait();
 		auto state = std::move(this->state_);
@@ -315,7 +314,7 @@ public:
 	/// which is not possible with std::future.
 	/// After calling share on a std::future, valid() == false.
 	//-----------------------------------------------------------------------------
-	shared_future<T> share();
+	auto share() -> shared_future<T>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -352,10 +351,10 @@ class future<void> : public detail::basic_future<void>
 public:
 	future() = default;
 	future(future&& rhs) noexcept = default;
-	future& operator=(future&& rhs) noexcept = default;
+	auto operator=(future&& rhs) noexcept -> future& = default;
 
 	future(const future&) = delete;
-	future& operator=(const future&) = delete;
+	auto operator=(const future&) -> future& = delete;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -378,7 +377,7 @@ public:
 	/// which is not possible with std::future.
 	/// After calling share on a std::future, valid() == false.
 	//-----------------------------------------------------------------------------
-	shared_future<void> share();
+	auto share() -> shared_future<void>;
 
 	//-----------------------------------------------------------------------------
 	/// Attach the continuation func to *this. The behavior is undefined
@@ -434,8 +433,8 @@ public:
 	}
 
 	shared_future(shared_future&& sf) noexcept = default;
-	shared_future& operator=(const shared_future& sf) = default;
-	shared_future& operator=(shared_future&& sf) noexcept = default;
+	auto operator=(const shared_future& sf) -> shared_future& = default;
+	auto operator=(shared_future&& sf) noexcept -> shared_future& = default;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -444,7 +443,7 @@ public:
 	/// The behavior is undefined if valid() is false before the call to this
 	/// function.
 	//-----------------------------------------------------------------------------
-	const T& get() const
+	auto get() const -> const T&
 	{
 		this->wait();
 		return this->state_->get_value_assuming_ready();
@@ -501,8 +500,8 @@ public:
 	}
 
 	shared_future(shared_future&& sf) noexcept = default;
-	shared_future& operator=(const shared_future& sf) = default;
-	shared_future& operator=(shared_future&& sf) noexcept = default;
+	auto operator=(const shared_future& sf) -> shared_future& = default;
+	auto operator=(shared_future&& sf) noexcept -> shared_future& = default;
 
 	//-----------------------------------------------------------------------------
 	/// The get method waits until the future has a valid
@@ -546,14 +545,14 @@ public:
 /// IMPLEMENTATIONS
 //-----------------------------------------------------------------------------
 template <typename T>
-future<T> make_ready_future(T&& value)
+auto make_ready_future(T&& value) -> future<T>
 {
 	promise<T> prom;
 	prom.set_value(std::forward<T>(value));
 	return prom.get_future();
 }
 
-inline future<void> make_ready_future()
+inline auto make_ready_future() -> future<void>
 {
 	promise<void> prom;
 	prom.set_value();
@@ -561,7 +560,7 @@ inline future<void> make_ready_future()
 }
 
 template <class T>
-future<T> make_exceptional_future(std::exception_ptr ex)
+auto make_exceptional_future(std::exception_ptr ex) -> future<T>
 {
 	promise<T> p;
 	p.set_exception(ex);
@@ -569,7 +568,7 @@ future<T> make_exceptional_future(std::exception_ptr ex)
 }
 
 template <class T, class E>
-future<T> make_exceptional_future(E ex)
+auto make_exceptional_future(E ex) -> future<T>
 {
 	promise<T> p;
 	p.set_exception(std::make_exception_ptr(ex));
@@ -577,26 +576,28 @@ future<T> make_exceptional_future(E ex)
 }
 
 template <typename T>
-shared_future<T> future<T>::share()
+auto future<T>::share() -> shared_future<T>
 {
-	return shared_future<T>(std::move(*this));
+	return {std::move(*this)};
 }
 
-inline shared_future<void> future<void>::share()
+inline auto future<void>::share() -> shared_future<void>
 {
-	return shared_future<void>(std::move(*this));
+	return {std::move(*this)};
 }
 namespace detail
 {
 template <typename... Args, typename T, typename F, typename Tuple>
-std::enable_if_t<!std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
+auto apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
+	-> std::enable_if_t<!std::is_same<T, void>::value>
 {
-	p.set_value(utility::apply(
-		[&f](std::decay_t<Args>&... args) { return std::forward<F>(f)(std::forward<Args>(args)...); },
-		params));
+	p.set_value(utility::apply([&f](std::decay_t<Args>&... args)
+							   { return std::forward<F>(f)(std::forward<Args>(args)...); },
+							   params));
 }
 template <typename... Args, typename T, typename F, typename Tuple>
-std::enable_if_t<std::is_same<T, void>::value> apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
+auto apply_and_forward_as(promise<T>& p, F&& f, Tuple& params)
+	-> std::enable_if_t<std::is_same<T, void>::value>
 {
 	utility::apply([&f](std::decay_t<Args>&... args) { std::forward<F>(f)(std::forward<Args>(args)...); },
 				   params);
@@ -611,7 +612,7 @@ struct packaged_task
 };
 
 template <typename F, typename... Args>
-packaged_task<async_ret_type<F, Args...>> package_future_task(F&& f, Args&&... args)
+auto package_future_task(F&& f, Args&&... args) -> packaged_task<async_ret_type<F, Args...>>
 {
 	using return_type = async_ret_type<F, Args...>;
 	auto prom = promise<return_type>();
@@ -644,13 +645,13 @@ packaged_task<async_ret_type<F, Args...>> package_future_task(F&& f, Args&&... a
 					} // set_exception() may throw too
 				}
 			}};
-// clang-format on
+	// clang-format on
 }
 
 inline void launch(thread::id id, std::launch policy, task& func)
 {
 
-	// Here we are not using invoke/run_or_invoke
+	// Here we are not using invoke/dispatch
 	// directly so that we can avoid repackaging again
 	// thus avoinding extra moves/copies
 	if(policy == std::launch::async)
@@ -660,7 +661,7 @@ inline void launch(thread::id id, std::launch policy, task& func)
 	}
 	else
 	{
-		// run_or_invoke(id, func);
+		// dispatch(id, func);
 		if(this_thread::get_id() == id)
 		{
 			// directly call it
@@ -696,11 +697,13 @@ auto async(thread::id id, F&& f, Args&&... args) -> future<async_ret_type<F, Arg
 template <typename F, typename... Args>
 auto async(std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
-	thread detached_thread([]() {
-		this_thread::register_this_thread();
-		this_thread::wait();
-		this_thread::unregister_this_thread();
-	});
+	thread detached_thread(
+		[]()
+		{
+			this_thread::register_this_thread();
+			this_thread::wait();
+			this_thread::unregister_this_thread();
+		});
 	detached_thread.detach();
 	return async(detached_thread.get_id(), policy, std::forward<F>(f), std::forward<Args>(args)...);
 }
@@ -722,15 +725,17 @@ auto future<T>::then(thread::id id, std::launch policy, F&& f) -> future<then_re
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
-		future<T> self(state);
-		return utility::invoke(f, std::move(self));
-	});
+	auto package = detail::package_future_task(
+		[f = std::forward<F>(f), state]() mutable
+		{
+			future<T> self(state);
+			return utility::invoke(f, std::move(self));
+		});
 	auto& future = package.callable_future;
 	auto& task = package.callable;
 
-	state->set_continuation(
-		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable
+							{ detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -746,11 +751,13 @@ template <typename T>
 template <typename F>
 auto future<T>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<T>>>
 {
-	thread detached_thread([]() {
-		this_thread::register_this_thread();
-		this_thread::wait();
-		this_thread::unregister_this_thread();
-	});
+	thread detached_thread(
+		[]()
+		{
+			this_thread::register_this_thread();
+			this_thread::wait();
+			this_thread::unregister_this_thread();
+		});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -774,15 +781,17 @@ auto shared_future<T>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
-		shared_future<T> self(state);
-		return utility::invoke(f, std::move(self));
-	});
+	auto package = detail::package_future_task(
+		[f = std::forward<F>(f), state]() mutable
+		{
+			shared_future<T> self(state);
+			return utility::invoke(f, std::move(self));
+		});
 	auto& future = package.callable_future;
 	auto& task = package.callable;
 
-	state->set_continuation(
-		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable
+							{ detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -798,11 +807,13 @@ template <typename T>
 template <typename F>
 auto shared_future<T>::then(std::launch policy, F&& f) const -> future<then_ret_type<F, shared_future<T>>>
 {
-	thread detached_thread([]() {
-		this_thread::register_this_thread();
-		this_thread::wait();
-		this_thread::unregister_this_thread();
-	});
+	thread detached_thread(
+		[]()
+		{
+			this_thread::register_this_thread();
+			this_thread::wait();
+			this_thread::unregister_this_thread();
+		});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -824,15 +835,17 @@ auto future<void>::then(thread::id id, std::launch policy, F&& f) -> future<then
 
 	// invalidate the state
 	auto state = std::move(this->state_);
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
-		future<void> self(state);
-		utility::invoke(f, std::move(self));
-	});
+	auto package = detail::package_future_task(
+		[f = std::forward<F>(f), state]() mutable
+		{
+			future<void> self(state);
+			utility::invoke(f, std::move(self));
+		});
 	auto& future = package.callable_future;
 	auto& task = package.callable;
 
-	state->set_continuation(
-		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable
+							{ detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -846,11 +859,13 @@ auto future<void>::then(thread::id id, F&& f) -> future<then_ret_type<F, future<
 template <typename F>
 auto future<void>::then(std::launch policy, F&& f) -> future<then_ret_type<F, future<void>>>
 {
-	thread detached_thread([]() {
-		this_thread::register_this_thread();
-		this_thread::wait();
-		this_thread::unregister_this_thread();
-	});
+	thread detached_thread(
+		[]()
+		{
+			this_thread::register_this_thread();
+			this_thread::wait();
+			this_thread::unregister_this_thread();
+		});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }
@@ -872,15 +887,17 @@ auto shared_future<void>::then(thread::id id, std::launch policy, F&& f) const
 
 	// do not invalidate the state
 	auto state = this->state_;
-	auto package = detail::package_future_task([f = std::forward<F>(f), state]() mutable {
-		shared_future<void> self(state);
-		utility::invoke(f, std::move(self));
-	});
+	auto package = detail::package_future_task(
+		[f = std::forward<F>(f), state]() mutable
+		{
+			shared_future<void> self(state);
+			utility::invoke(f, std::move(self));
+		});
 	auto& future = package.callable_future;
 	auto& task = package.callable;
 
-	state->set_continuation(
-		[id, policy, task = std::move(task)]() mutable { detail::launch(id, policy, task); });
+	state->set_continuation([id, policy, task = std::move(task)]() mutable
+							{ detail::launch(id, policy, task); });
 
 	return std::move(future);
 }
@@ -895,11 +912,13 @@ template <typename F>
 auto shared_future<void>::then(std::launch policy, F&& f) const
 	-> future<then_ret_type<F, shared_future<void>>>
 {
-	thread detached_thread([]() {
-		this_thread::register_this_thread();
-		this_thread::wait();
-		this_thread::unregister_this_thread();
-	});
+	thread detached_thread(
+		[]()
+		{
+			this_thread::register_this_thread();
+			this_thread::wait();
+			this_thread::unregister_this_thread();
+		});
 	detached_thread.detach();
 	return then(detached_thread.get_id(), policy, std::forward<F>(f));
 }

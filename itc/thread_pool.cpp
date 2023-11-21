@@ -78,7 +78,7 @@ public:
 		workers.clear();
 	}
 
-	job_id add_job(task& user_job, priority::group group)
+	auto add_job(task& user_job, priority::group group) -> job_id
 	{
 		auto packaged_task = detail::package_future_task(std::move(user_job));
 		std::lock_guard<std::mutex> lock(guard_);
@@ -178,7 +178,7 @@ public:
 		}
 	}
 
-	size_t get_jobs_count() const
+	auto get_jobs_count() const -> size_t
 	{
 		std::lock_guard<std::mutex> lock(guard_);
 		return jobs_.size();
@@ -208,7 +208,7 @@ private:
 		}
 	}
 
-	jobs_queue& get_highest_priority_queue_above(priority::category level)
+	auto get_highest_priority_queue_above(priority::category level) -> jobs_queue&
 	{
 		priority::category selected_level = level;
 

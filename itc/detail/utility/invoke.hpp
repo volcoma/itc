@@ -107,49 +107,41 @@ constexpr inline auto invoke(F&& f, Args&&... args) noexcept(
 // Conforming C++14 implementation (is also a valid C++11 implementation):
 namespace detail
 {
-template <typename T>
-struct identity
-{
-	using type = T;
-};
-template <typename...>
-struct voider : identity<void>
+///////////////////////////////////////////////////////////////////////////
+
+template <typename T, typename Enable = void>
+struct invoke_result_impl
 {
 };
 
-template <typename... Ts>
-using void_t = typename voider<Ts...>::type;
-
-template <typename F, typename... Args>
-using invoke_result_ = decltype(invoke(std::declval<F>(), std::declval<Args>()...));
-
-template <typename AlwaysVoid, typename, typename...>
-struct invoke_result
+template <typename F, typename... Ts>
+struct invoke_result_impl<F(Ts...), decltype((void)invoke(std::declval<F>(), std::declval<Ts>()...))>
 {
-};
-template <typename F, typename... Args>
-struct invoke_result<void_t<invoke_result_<F, Args...>>, F, Args...>
-{
-	using type = invoke_result_<F, Args...>;
+	using type = decltype(invoke(std::declval<F>(), std::declval<Ts>()...));
 };
 } // namespace detail
 
-template <typename>
-struct result_of;
-template <typename F, typename... ArgTypes>
-struct result_of<F(ArgTypes...)> : detail::invoke_result<void, F, ArgTypes...>
+//! template <class Fn, class... ArgTypes> struct invoke_result;
+//!
+//! - _Comments_: If the expression `INVOKE(std::declval<Fn>(),
+//!   std::declval<ArgTypes>()...)` is well-formed when treated as an
+//!   unevaluated operand, the member typedef `type` names the type
+//!   `decltype(INVOKE(std::declval<Fn>(), std::declval<ArgTypes>()...))`;
+//!   otherwise, there shall be no member `type`. Access checking is
+//!   performed as if in a context unrelated to `Fn` and `ArgTypes`. Only
+//!   the validity of the immediate context of the expression is considered.
+//!
+//! - _Preconditions_: `Fn` and all types in the template parameter pack
+//!   `ArgTypes` are complete types, _cv_ `void`, or arrays of unknown
+//!   bound.
+template <typename Fn, typename... ArgTypes>
+struct invoke_result : detail::invoke_result_impl<Fn && (ArgTypes && ...)>
 {
 };
 
-template <typename F, typename... Args>
-using result_of_t = typename result_of<F(Args...)>::type;
-
-template <typename F, typename... ArgTypes>
-struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
-{
-};
-
-template <typename F, typename... Args>
-using invoke_result_t = typename invoke_result<F, Args...>::type;
+//! template <class Fn, class... ArgTypes>
+//! using invoke_result_t = typename invoke_result<Fn, ArgTypes...>::type;
+template <typename Fn, typename... ArgTypes>
+using invoke_result_t = typename invoke_result<Fn, ArgTypes...>::type;
 } // namespace utility
 } // namespace itc

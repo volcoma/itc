@@ -23,7 +23,7 @@ public:
 
 	thread() noexcept;
 	thread(thread&&) noexcept = default;
-	thread& operator=(thread&& th) noexcept;
+	auto operator=(thread&& th) noexcept -> thread&;
 
 	template <typename F, typename... Args>
 	explicit thread(F&& f, Args&&... args)
@@ -33,7 +33,7 @@ public:
 	}
 
 	thread(const thread&) = delete;
-	thread& operator=(const thread&) = delete;
+	auto operator=(const thread&) -> thread& = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Destructs the thread object. Notifies and joins if joinable.
@@ -43,7 +43,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the unique id of the thread
 	//-----------------------------------------------------------------------------
-	id get_id() const;
+	auto get_id() const -> id;
 
 	//-----------------------------------------------------------------------------
 	/// Notifies and waits for a thread to finish its execution
@@ -60,7 +60,7 @@ private:
 //-----------------------------------------------------------------------------
 /// Gets an invalid thread::id
 //-----------------------------------------------------------------------------
-constexpr inline thread::id invalid_id()
+constexpr inline auto invalid_id() -> thread::id
 {
 	return {};
 }
@@ -94,20 +94,20 @@ void init(const init_data& data = {});
 /// Returns the number of threads that were not able to shutdown.
 /// 0 indicates success.
 //-----------------------------------------------------------------------------
-int shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5));
+auto shutdown(const std::chrono::seconds& wait_time = std::chrono::seconds(5)) -> int;
 
 //-----------------------------------------------------------------------------
 /// Queues a task to be executed on the specified thread and notifies it.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-bool invoke(thread::id id, F&& f, Args&&... args);
+auto invoke(thread::id id, F&& f, Args&&... args) -> bool;
 
 //-----------------------------------------------------------------------------
 /// If the calling thread is the same as the one passed it then
 /// execute the task directly, else behave like invoke.
 //-----------------------------------------------------------------------------
 template <typename F, typename... Args>
-bool run_or_invoke(thread::id id, F&& f, Args&&... args);
+auto dispatch(thread::id id, F&& f, Args&&... args) -> bool;
 
 //-----------------------------------------------------------------------------
 /// Wakes up a thread if sleeping via any of the itc blocking mechanisms.
@@ -124,31 +124,31 @@ void notify_for_exit(thread::id id);
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
 //-----------------------------------------------------------------------------
-thread make_thread(const std::string& name = "");
+auto make_thread(const std::string& name = {}) -> thread;
 
 //-----------------------------------------------------------------------------
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
 //-----------------------------------------------------------------------------
-shared_thread make_shared_thread(const std::string& name = "");
+auto make_shared_thread(const std::string& name = {}) -> shared_thread;
 
 //-----------------------------------------------------------------------------
 /// Retrieves all registered thread ids.
 //-----------------------------------------------------------------------------
-std::vector<thread::id> get_all_registered_threads();
+auto get_all_registered_threads() -> std::vector<thread::id>;
 
 //-----------------------------------------------------------------------------
 /// Retrieves the count of pending tasks for given thread id.
 /// Useful for debug.
 //-----------------------------------------------------------------------------
-std::size_t get_pending_task_count(thread::id id);
+auto get_pending_task_count(thread::id id) -> std::size_t;
 
 namespace main_thread
 {
 //-----------------------------------------------------------------------------
 /// Retrieves the main thread id.
 //-----------------------------------------------------------------------------
-thread::id get_id();
+auto get_id() -> thread::id;
 } // namespace main_thread
 
 //-----------------------------------------------------------------------------
@@ -170,12 +170,12 @@ void unregister_this_thread();
 //-----------------------------------------------------------------------------
 /// Check whether this thread has been notified for exit.
 //-----------------------------------------------------------------------------
-bool notified_for_exit();
+auto notified_for_exit() -> bool;
 
 //-----------------------------------------------------------------------------
 /// Gets the current thread id. Returns invalid id if not registered.
 //-----------------------------------------------------------------------------
-thread::id get_id();
+auto get_id() -> thread::id;
 
 //-----------------------------------------------------------------------------
 /// Process all tasks.
@@ -201,7 +201,7 @@ void wait();
 /// due to scheduling or resource contention delays.
 //-----------------------------------------------------------------------------
 template <typename Rep, typename Period>
-std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime);
+auto wait_for(const std::chrono::duration<Rep, Period>& rtime) -> std::cv_status;
 
 //-----------------------------------------------------------------------------
 /// Blocks until specified abs_time has been reached or
@@ -211,7 +211,7 @@ std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime);
 /// due to scheduling or resource contention delays.
 //-----------------------------------------------------------------------------
 template <typename Clock, typename Duration>
-std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time);
+auto wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) -> std::cv_status;
 
 //-----------------------------------------------------------------------------
 /// Sleeps for the specified duration and allow tasks to be processed during
@@ -230,8 +230,8 @@ void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time);
 //-----------------------------------------------------------------------------
 /// Gets the current processing stack depth of this thread
 //-----------------------------------------------------------------------------
-std::uint32_t get_depth();
-bool is_registered();
+auto get_depth() -> std::uint32_t;
+auto is_registered() -> bool;
 
 } // namespace this_thread
 } // namespace itc
@@ -245,7 +245,7 @@ namespace detail
 {
 
 template <typename F, typename... Args>
-task package_simple_task(F&& f, Args&&... args)
+auto package_simple_task(F&& f, Args&&... args) -> task
 {
 	return [callable = capture(std::forward<F>(f)), params = capture(std::forward<Args>(args)...)]() mutable
 	{
@@ -255,24 +255,24 @@ task package_simple_task(F&& f, Args&&... args)
 	};
 }
 
-bool invoke_packaged_task(thread::id id, task& f);
+auto invoke_packaged_task(thread::id id, task& f) -> bool;
 } // namespace detail
 
 // apply perfect forwarding to the callable and arguments
-// so that so that using invoke/run_or_invoke will result
+// so that so that using invoke/dispatch will result
 // in the same number of calls to constructors
 template <typename F, typename... Args>
-bool invoke(thread::id id, F&& f, Args&&... args)
+auto invoke(thread::id id, F&& f, Args&&... args) -> bool
 {
 	auto task = detail::package_simple_task(std::forward<F>(f), std::forward<Args>(args)...);
 	return detail::invoke_packaged_task(id, task);
 }
 
 // apply perfect forwarding to the callable and arguments
-// so that so that using invoke/run_or_invoke will result
+// so that so that using invoke/dispatch will result
 // in the same number of calls to constructors
 template <typename F, typename... Args>
-bool run_or_invoke(thread::id id, F&& f, Args&&... args)
+auto dispatch(thread::id id, F&& f, Args&&... args) -> bool
 {
 	if(this_thread::get_id() == id)
 	{
@@ -287,13 +287,13 @@ bool run_or_invoke(thread::id id, F&& f, Args&&... args)
 }
 
 // set thread config if you want to use different capasity sizes than default from init
-bool set_thread_config(thread::id id, tasks_capacity_config config);
+auto set_thread_config(thread::id id, tasks_capacity_config config) -> bool;
 
 namespace this_thread
 {
 namespace detail
 {
-std::cv_status wait_for(const std::chrono::microseconds& rtime);
+auto wait_for(const std::chrono::microseconds& rtime) -> std::cv_status;
 void process_for(const std::chrono::microseconds& rtime);
 } // namespace detail
 
@@ -305,7 +305,7 @@ void process_for(const std::chrono::duration<Rep, Period>& rtime)
 }
 
 template <typename Rep, typename Period>
-inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)
+inline auto wait_for(const std::chrono::duration<Rep, Period>& rtime) -> std::cv_status
 {
 	if(rtime <= rtime.zero())
 	{
@@ -318,7 +318,7 @@ inline std::cv_status wait_for(const std::chrono::duration<Rep, Period>& rtime)
 }
 
 template <typename Clock, typename Duration>
-inline std::cv_status wait_until(const std::chrono::time_point<Clock, Duration>& abs_time)
+inline auto wait_until(const std::chrono::time_point<Clock, Duration>& abs_time) -> std::cv_status
 {
 	return wait_for(abs_time.time_since_epoch() - Clock::now().time_since_epoch());
 }
