@@ -6,11 +6,73 @@
 
 namespace itc
 {
+
+namespace priority
+{
+
+enum class category : size_t
+{
+	normal,
+	high,
+	critical
+};
+
+struct group
+{
+	group() = default;
+	group(category c, size_t pr)
+		: level(c)
+		, priority(pr)
+	{
+	}
+
+	category level = category::normal;
+	size_t priority = 0;
+};
+
+inline auto operator==(const group& lhs, const group& rhs) -> bool
+{
+	return lhs.level == rhs.level && lhs.priority == rhs.priority;
+}
+
+inline auto normal(size_t priority = 0) -> group
+{
+	return {category::normal, priority};
+}
+inline auto high(size_t priority = 0) -> group
+{
+	return {category::high, priority};
+}
+inline auto critical(size_t priority = 0) -> group
+{
+	return {category::critical, priority};
+}
+
+} // namespace priority
+
 using job_id = uint64_t;
 
 struct job_future_storage
 {
+    friend class thread_pool;
 	job_id id = 0;
+
+
+    //-----------------------------------------------------------------------------
+	/// Changes the priority level of the specified job.
+	/// Increasing the priority will cause the job to be executed sooner.
+	//-----------------------------------------------------------------------------
+	void change_priority(priority::group group);
+
+	//-----------------------------------------------------------------------------
+	/// Attempt to stop a job by its id. If the job is already executing
+	/// this function will do nothing.
+	//-----------------------------------------------------------------------------
+	void stop();
+
+private:
+    std::weak_ptr<int> sentinel_{};
+    thread_pool* owner_{};
 };
 
 template <typename T>
@@ -65,49 +127,6 @@ struct job_shared_future : shared_future<T>, job_future_storage
 
 template <typename F, typename... Args>
 using job_ret_type = callable_ret_type<F, Args...>;
-
-namespace priority
-{
-
-enum class category : size_t
-{
-	normal,
-	high,
-	critical
-};
-
-struct group
-{
-	group() = default;
-	group(category c, size_t pr)
-		: level(c)
-		, priority(pr)
-	{
-	}
-
-	category level = category::normal;
-	size_t priority = 0;
-};
-
-inline auto operator==(const group& lhs, const group& rhs) -> bool
-{
-	return lhs.level == rhs.level && lhs.priority == rhs.priority;
-}
-
-inline auto normal(size_t priority = 0) -> group
-{
-	return {category::normal, priority};
-}
-inline auto high(size_t priority = 0) -> group
-{
-	return {category::high, priority};
-}
-inline auto critical(size_t priority = 0) -> group
-{
-	return {category::critical, priority};
-}
-
-} // namespace priority
 
 //-----------------------------------------------------------------------------
 /// Thread pool class. Can have multiple priority groups.
@@ -188,6 +207,8 @@ private:
 	class impl;
 	/// pimpl idiom
 	std::unique_ptr<impl> impl_;
+
+    std::shared_ptr<int> sentinel_ = std::make_shared<int>();
 };
 
 template <typename F, typename... Args>
@@ -197,6 +218,8 @@ auto thread_pool::schedule(priority::group group, F&& f, Args&&... args)
 	auto packaged_task = detail::package_future_task(std::forward<F>(f), std::forward<Args>(args)...);
 	job_future<async_ret_type<F, Args...>> fut(std::move(packaged_task.callable_future));
 	fut.id = add_job(packaged_task.callable, group);
+    fut.sentinel_ = sentinel_;
+    fut.owner_ = this;
 	return fut;
 }
 

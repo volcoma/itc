@@ -330,4 +330,30 @@ size_t thread_pool::get_jobs_count() const
 	return impl_->get_jobs_count();
 }
 
+void job_future_storage::change_priority(priority::group group)
+{
+    if(sentinel_.expired())
+    {
+        return;
+    }
+
+    if(owner_)
+    {
+        owner_->change_priority(id, group);
+    }
+}
+
+void job_future_storage::stop()
+{
+    if(sentinel_.expired())
+    {
+        return;
+    }
+
+    if(owner_)
+    {
+        owner_->stop(id);
+    }
+}
+
 } // namespace itc
