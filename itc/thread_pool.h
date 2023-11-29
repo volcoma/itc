@@ -51,6 +51,7 @@ inline auto critical(size_t priority = 0) -> group
 } // namespace priority
 
 using job_id = uint64_t;
+class thread_pool;
 
 struct job_future_storage
 {
