@@ -260,12 +260,9 @@ auto get_pending_task_count(thread::id id) -> size_t
 
 	const auto left_to_process = context->processing_tasks.size() - context->processing_idx;
 	const auto pending = context->tasks.size();
-	const auto total = left_to_process + pending;
-    if(total > 30)
-    {
-        int a = 0;
-        a++;
-    }
+    const auto processing = context->processing_stack_depth.load();
+	const auto total = processing + left_to_process + pending;
+
     return total;
 }
 
