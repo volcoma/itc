@@ -23,6 +23,7 @@ struct thread_context
 	std::condition_variable wakeup_event;
 	std::atomic<std::uint32_t> processing_stack_depth{0};
 
+    std::string name;
 	std::atomic<bool> wakeup{false};
 	std::atomic<bool> exit{false};
 };
@@ -100,7 +101,7 @@ void log_error(const std::string& name)
 	}
 }
 
-auto register_thread_impl(std::thread::id native_thread_id) -> std::shared_ptr<thread_context>
+auto register_thread_impl(std::thread::id native_thread_id, const std::string& name) -> std::shared_ptr<thread_context>
 {
 	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
@@ -131,8 +132,12 @@ auto register_thread_impl(std::thread::id native_thread_id) -> std::shared_ptr<t
 	local_context->id = id;
 	local_context->capacity_shrink_threashold =
 		global_context.config.tasks_capacity.capacity_shrink_threashold;
-	global_context.id_map[native_thread_id] = id;
+
+    local_context->name = name;
+    global_context.id_map[native_thread_id] = id;
 	global_context.contexts.emplace(id, local_context);
+
+
 	return local_context;
 }
 
@@ -236,12 +241,12 @@ auto get_all_registered_threads() -> std::vector<thread::id>
 	return result;
 }
 
-auto get_pending_task_count(thread::id id) -> size_t
+auto get_pending_task_count_detailed(thread::id id) -> task_info
 {
 	if(id == invalid_id())
 	{
 		log_error_func("Invoking to an invalid thread.");
-		return 0;
+        return {};
 	}
 	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
@@ -249,7 +254,7 @@ auto get_pending_task_count(thread::id id) -> size_t
 	auto it = global_context.contexts.find(id);
 	if(it == global_context.contexts.end())
 	{
-		return 0;
+		return {};
 	}
 
 	auto context = it->second;
@@ -263,7 +268,22 @@ auto get_pending_task_count(thread::id id) -> size_t
     const auto processing = context->processing_stack_depth.load();
 	const auto total = processing + left_to_process + pending;
 
-    return total;
+    task_info info;
+    info.count = total;
+    if(!context->name.empty())
+    {
+        info.thread_name = context->name;
+    }
+    else
+    {
+        info.thread_name = std::to_string(id);
+    }
+    return info;
+}
+
+auto get_pending_task_count(thread::id id) -> size_t
+{
+	return get_pending_task_count_detailed(id).count;
 }
 
 auto has_tasks_to_process(const thread_context& context) -> bool
@@ -538,9 +558,17 @@ void wait()
 
 void register_this_thread()
 {
-	auto context = register_thread_impl(std::this_thread::get_id());
+    auto context = register_thread_impl(std::this_thread::get_id(), {});
 	set_local_context(context.get());
 }
+
+
+void register_this_thread(const std::string& name)
+{
+	auto context = register_thread_impl(std::this_thread::get_id(), name);
+	set_local_context(context.get());
+}
+
 
 void unregister_this_thread()
 {
@@ -607,10 +635,10 @@ auto is_registered() -> bool
 
 auto make_thread(const std::string& name) -> thread
 {
-	thread t(
+	thread t(name,
 		[name]()
 		{
-			this_thread::register_this_thread();
+			this_thread::register_this_thread(name);
 
 			on_thread_start(name);
 
@@ -643,9 +671,9 @@ void thread::join()
 	std::thread::join();
 }
 
-void thread::register_this()
+void thread::register_this(const std::string& name)
 {
-	auto context = register_thread_impl(std::thread::get_id());
+    auto context = register_thread_impl(std::thread::get_id(), name);
 	id_ = context->id;
 }
 

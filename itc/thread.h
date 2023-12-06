@@ -8,6 +8,7 @@
 #include <functional>
 #include <thread>
 #include <vector>
+#include <string>
 
 namespace itc
 {
@@ -29,7 +30,14 @@ public:
 	explicit thread(F&& f, Args&&... args)
 		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
 	{
-		register_this();
+        register_this({});
+	}
+
+    template <typename F, typename... Args>
+	explicit thread(const std::string& name, F&& f, Args&&... args)
+		: std::thread(std::forward<F>(f), std::forward<Args>(args)...)
+	{
+		register_this(name);
 	}
 
 	thread(const thread&) = delete;
@@ -51,7 +59,7 @@ public:
 	void join();
 
 private:
-	void register_this();
+	void register_this(const std::string& name);
 
 	/// associated thread id
 	id id_ = 0;
@@ -141,7 +149,15 @@ auto get_all_registered_threads() -> std::vector<thread::id>;
 /// Retrieves the count of pending tasks for given thread id.
 /// Useful for debug.
 //-----------------------------------------------------------------------------
+struct task_info
+{
+    size_t count{};
+    std::string thread_name{};
+};
+auto get_pending_task_count_detailed(thread::id id) -> task_info;
+
 auto get_pending_task_count(thread::id id) -> std::size_t;
+
 
 namespace main_thread
 {
@@ -161,6 +177,7 @@ namespace this_thread
 /// Registers this thread and links it for fast access.
 //-----------------------------------------------------------------------------
 void register_this_thread();
+void register_this_thread(const std::string& name);
 
 //-----------------------------------------------------------------------------
 /// Unregisters this thread and unlinks it.
