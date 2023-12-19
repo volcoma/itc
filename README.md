@@ -1,6 +1,7 @@
 # itc - inter-thread communication
-[![Build Status](https://travis-ci.org/volcoma/itc.svg?branch=master)](https://travis-ci.org/volcoma/itc)
-[![Build status](https://ci.appveyor.com/api/projects/status/v8hg9lp8irous3jj?svg=true)](https://ci.appveyor.com/project/volcoma/itc)
+![windows](https://github.com/volcoma/itc/actions/workflows/windows.yml/badge.svg)
+![linux](https://github.com/volcoma/itc/actions/workflows/linux.yml/badge.svg)
+![macos](https://github.com/volcoma/itc/actions/workflows/macos.yml/badge.svg)
 
 C++14 library providing easy interface for inter-thread communication in a single process.
 It has no dependencies except the standard library.
