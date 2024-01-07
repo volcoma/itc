@@ -179,7 +179,7 @@ void init(const init_data& data)
 		return;
 	}
 
-	this_thread::register_this_thread();
+	this_thread::register_this_thread("Main Thread");
 	std::unique_lock<std::mutex> lock(global_context.mutex);
 	global_context.main_thread_id = this_thread::get_id();
 	global_context.config = data;
