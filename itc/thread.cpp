@@ -233,6 +233,8 @@ auto get_all_registered_threads() -> std::vector<thread::id>
 	std::vector<thread::id> result;
 	auto& global_context = get_global_context();
 	std::unique_lock<std::mutex> lock(global_context.mutex);
+
+    result.reserve(global_context.contexts.size());
 	for(const auto& p : global_context.contexts)
 	{
 		result.emplace_back(p.first);
