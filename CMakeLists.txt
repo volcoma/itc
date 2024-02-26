@@ -1,14 +1,19 @@
 cmake_minimum_required(VERSION 3.14)
 
+set(ITC_MAIN_PROJECT ON)
+if(DEFINED PROJECT_SOURCE_DIR)
+    set(ITC_MAIN_PROJECT OFF)
+endif()
+
 project(itc)
 include(CTest)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utility")
 
-option(BUILD_ITC_SHARED "Build as a shared library." ON)
-option(BUILD_ITC_TESTS "Build the tests" OFF)
-option(BUILD_ITC_WITH_CODE_STYLE_CHECKS "Build with code style checks." OFF)
+option(BUILD_ITC_SHARED "Build as a shared library." ${ITC_MAIN_PROJECT})
+option(BUILD_ITC_TESTS "Build the tests" ${ITC_MAIN_PROJECT})
+option(BUILD_ITC_WITH_CODE_STYLE_CHECKS "Build with code style checks." ${ITC_MAIN_PROJECT})
 
 if(BUILD_ITC_TESTS)
 	if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
