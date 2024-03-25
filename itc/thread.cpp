@@ -340,6 +340,14 @@ void notify(thread::id id)
            });
 }
 
+
+auto register_thread(std::thread::id id, const std::string& name) -> thread::id
+{
+    auto ctx = register_thread_impl(id, name);
+    return ctx->id;
+}
+
+
 namespace detail
 {
 // this function exists to avoid extra moves of the functor

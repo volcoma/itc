@@ -133,6 +133,12 @@ void notify(thread::id id);
 void notify_for_exit(thread::id id);
 
 //-----------------------------------------------------------------------------
+/// Registers a thread by the native thread id.
+/// Returns the unique generated id that can be used with the rest of the api.
+//-----------------------------------------------------------------------------
+auto register_thread(std::thread::id id, const std::string& name = {}) -> thread::id;
+
+//-----------------------------------------------------------------------------
 /// Automatically register and run a thread with a prepared loop ready to be
 /// invoked into.
 //-----------------------------------------------------------------------------

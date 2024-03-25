@@ -286,10 +286,9 @@ void run_tests(int iterations)
 
 
         {
-            auto chain = itc::async(th1_id, []()
+            auto chain = itc::async(th1_id, []() -> int
             {
                 throw std::runtime_error("propagate");
-                return 12;
             })
             .then(this_th_id, [](auto parent)
             {
