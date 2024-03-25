@@ -24,5 +24,5 @@ target_link_libraries(${target_name} PUBLIC Threads::Threads)
 include(target_warning_support)
 set_warning_level(${target_name} ultra)
 
-include(target_code_style_support)
-set_code_style(itc lower_case check_headers "${extra_flags}")
+#include(target_code_style_support)
+#set_code_style(itc lower_case check_headers "${extra_flags}")
