@@ -6,6 +6,12 @@ file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
 add_executable(${target_name} ${libsrc})
 
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+target_link_libraries(${target_name} PUBLIC Threads::Threads)
+
+
 target_link_libraries(${target_name} PUBLIC itc)
 
 set_target_properties(${target_name} PROPERTIES
@@ -13,6 +19,8 @@ set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
 )
+
+
 
 include(target_warning_support)
 set_warning_level(${target_name} ultra)

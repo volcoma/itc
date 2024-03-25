@@ -1,12 +1,14 @@
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
-add_library(itc ${libsrc})
+set(target_name itc)
 
-target_include_directories(itc
+add_library(${target_name} ${libsrc})
+
+target_include_directories(${target_name}
     PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/..
 )
-set_target_properties(itc PROPERTIES
+set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
@@ -17,10 +19,10 @@ set_target_properties(itc PROPERTIES
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
-target_link_libraries(itc PUBLIC Threads::Threads)
+target_link_libraries(${target_name} PUBLIC Threads::Threads)
 
 include(target_warning_support)
-set_warning_level(itc ultra)
+set_warning_level(${target_name} ultra)
 
 include(target_code_style_support)
 set_code_style(itc lower_case check_headers "${extra_flags}")
