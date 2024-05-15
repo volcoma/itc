@@ -65,12 +65,12 @@ auto get_local_context() -> thread_context&
     return *local_data;
 }
 
-void name_thread(std::thread& th, const std::string& name)
+void name_thread(const std::string& name)
 {
     const auto& global_context = get_global_context();
     if(global_context.config.set_thread_name && !name.empty())
     {
-        global_context.config.set_thread_name(th, name);
+        global_context.config.set_thread_name(name);
     }
 }
 
@@ -656,6 +656,8 @@ auto make_thread(const std::string& name) -> thread
     thread t(name,
              [name]()
              {
+                 name_thread(name);
+
                  this_thread::register_this_thread(name);
 
                  on_thread_start(name);
@@ -668,7 +670,6 @@ auto make_thread(const std::string& name) -> thread
                  this_thread::unregister_this_thread();
              });
 
-    name_thread(t, name);
 
     return t;
 }

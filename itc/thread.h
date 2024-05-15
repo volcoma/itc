@@ -91,7 +91,7 @@ struct init_data
 {
     std::function<void(const std::string&)> log_info{};
     std::function<void(const std::string&)> log_error{};
-    std::function<void(std::thread&, const std::string&)> set_thread_name{};
+    std::function<void(const std::string&)> set_thread_name{};
     std::function<void(const std::string&)> on_thread_start{};
     tasks_capacity_config tasks_capacity{};
 };
