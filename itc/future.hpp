@@ -211,7 +211,7 @@ public:
     //-----------------------------------------------------------------------------
     void abandon()
     {
-        auto exception = std::make_exception_ptr(std::future_error(std::future_errc::broken_promise));
+        auto exception = std::make_exception_ptr(std::future_error(std::make_error_code(std::future_errc::broken_promise)));
         set_exception(exception);
     }
 
@@ -234,7 +234,7 @@ protected:
 
         if(state_->retrieved.test_and_set())
         {
-            throw std::future_error(std::future_errc::future_already_retrieved);
+            throw std::future_error(std::make_error_code(std::future_errc::future_already_retrieved));
         }
     }
 

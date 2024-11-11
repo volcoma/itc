@@ -45,7 +45,7 @@ struct basic_state
 
         if(ready())
         {
-            throw std::future_error(std::future_errc::promise_already_satisfied);
+            throw std::future_error(std::make_error_code(std::future_errc::promise_already_satisfied));
         }
         exception = std::move(ex);
         set_ready(lock, value_status::error);
@@ -143,7 +143,7 @@ struct future_state : public basic_state<T>
 
         if(this->ready())
         {
-            throw std::future_error(std::future_errc::promise_already_satisfied);
+            throw std::future_error(std::make_error_code(std::future_errc::promise_already_satisfied));
         }
 
         this->value = std::make_shared<std::decay_t<V>>(std::forward<V>(val));
@@ -165,7 +165,7 @@ struct future_state : public basic_state<T>
         }
         else
         {
-            throw std::future_error(std::future_errc::broken_promise);
+            throw std::future_error(std::make_error_code(std::future_errc::broken_promise));
         }
     }
 };
@@ -179,7 +179,7 @@ struct future_state<void> : public basic_state<void>
 
         if(ready())
         {
-            throw std::future_error(std::future_errc::promise_already_satisfied);
+            throw std::future_error(std::make_error_code(std::future_errc::promise_already_satisfied));
         }
 
         set_ready(lock, value_status::ready);
@@ -195,7 +195,7 @@ inline void check_state(const std::shared_ptr<future_state<T>>& state)
 {
     if(!state)
     {
-        throw std::future_error(std::future_errc::no_state);
+        throw std::future_error(std::make_error_code(std::future_errc::no_state));
     }
 }
 
