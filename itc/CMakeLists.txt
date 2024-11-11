@@ -9,7 +9,7 @@ target_include_directories(${target_name}
 		${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 set_target_properties(${target_name} PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     POSITION_INDEPENDENT_CODE ON
