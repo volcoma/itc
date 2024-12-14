@@ -1,7 +1,7 @@
-# itc - inter-thread communication
-![windows](https://github.com/volcoma/itc/actions/workflows/windows.yml/badge.svg)
-![linux](https://github.com/volcoma/itc/actions/workflows/linux.yml/badge.svg)
-![macos](https://github.com/volcoma/itc/actions/workflows/macos.yml/badge.svg)
+# threadpp - thread communication library
+![windows](https://github.com/volcoma/threadpp/actions/workflows/windows.yml/badge.svg)
+![linux](https://github.com/volcoma/threadpp/actions/workflows/linux.yml/badge.svg)
+![macos](https://github.com/volcoma/threadpp/actions/workflows/macos.yml/badge.svg)
 
 C++14 library providing easy interface for inter-thread communication in a single process.
 It has no dependencies except the standard library.
@@ -16,31 +16,31 @@ It provides a very easy interface to attach any std thread to it and start invok
 std::thread make_std_thread()
 {
 	std::thread th([]() {
-		itc::this_thread::register_this_thread();
+		tpp::this_thread::register_this_thread();
 
-		while(!itc::this_thread::notified_for_exit())
+		while(!tpp::this_thread::notified_for_exit())
 		{
-			itc::this_thread::wait();
+			tpp::this_thread::wait();
 		}
 
-		itc::this_thread::unregister_this_thread();
+		tpp::this_thread::unregister_this_thread();
 	});
-	itc::register_thread(th.get_id());
+	tpp::register_thread(th.get_id());
 	return th;
 }
-itc::thread::id make_detached_std_thread()
+tpp::thread::id make_detached_std_thread()
 {
 	std::thread th([]() {
-		itc::this_thread::register_this_thread();
+		tpp::this_thread::register_this_thread();
 
-		while(!itc::this_thread::notified_for_exit())
+		while(!tpp::this_thread::notified_for_exit())
 		{
-			itc::this_thread::wait();
+			tpp::this_thread::wait();
 		}
 
-		itc::this_thread::unregister_this_thread();
+		tpp::this_thread::unregister_this_thread();
 	});
-	auto id = itc::register_thread(th.get_id());
+	auto id = tpp::register_thread(th.get_id());
 	th.detach();
 
 	return id;
@@ -48,14 +48,14 @@ itc::thread::id make_detached_std_thread()
 
 itc::thread::id create_detached_itc_thread()
 {
-	auto th = itc::make_thread();
+	auto th = tpp::make_thread();
 	th.detach();
 	return th.get_id();
 }
 
 int main()
 {
-	itc::init_data data;
+	tpp::init_data data;
 	data.log_error = [](const std::string& msg) { sout() << msg << "\n"; };
 	data.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
 	data.set_thread_name = [](std::thread& thread, const std::string& name) { /*some platform specific code to name a thread*/ };
@@ -64,39 +64,39 @@ int main()
 	{
 		// you can register any std::thread
 		auto std_thread = make_std_thread();
-		auto std_thread_mapped_id = itc::register_thread(std_thread.get_id());
+		auto std_thread_mapped_id = tpp::register_thread(std_thread.get_id());
 		auto std_thread_detached_mapped_id = make_detached_std_thread();
 
 		// or you can use itc's make_thread which will 
 		// basically do the same as make_std_thread
-		auto itc_thread = itc::make_thread("some_name");
+		auto itc_thread = tpp::make_thread("some_name");
 		auto itc_thread_detached_id = create_detached_itc_thread();
 
-		while(!itc::this_thread::notified_for_exit())
+		while(!tpp::this_thread::notified_for_exit())
 		{
 			// process this_thread's pending tasks if any.
 			// Also any other blocking call will try to do so
-			itc::this_thread::process();
+			tpp::this_thread::process();
 			
 			/// Sleeps for the specified duration and allow tasks to be processed during
 			/// that time.
-			//itc::this_thread::sleep_for(16ms);
+			//tpp::this_thread::sleep_for(16ms);
 			
 			/// Blocks until notified with an event and process it.
-			//itc::this_thread::wait();
+			//tpp::this_thread::wait();
 			
 			/// Blocks until specified timeout_duration has elapsed or
 			/// notified, whichever comes first.
-			//itc::this_thread::wait_for(16ms);
+			//tpp::this_thread::wait_for(16ms);
 
 			int arg = 12;
 			// clang-format off
-			itc::invoke(std_thread_mapped_id,
+			tpp::invoke(std_thread_mapped_id,
 			[](int arg)
 			{
 				sout() << "on std::thread " << arg;
 
-				itc::invoke(itc::main_thread::get_id(),
+				tpp::invoke(tpp::main_thread::get_id(),
 				[](int arg)
 				{
 					sout() << "on main_thread from std::thread " << arg;
@@ -104,39 +104,39 @@ int main()
 
 			}, i);
 
-			itc::invoke(std_thread_detached_mapped_id,
+			tpp::invoke(std_thread_detached_mapped_id,
 			[](int arg)
 			{
 				sout() << "on detached std::thread " << arg;
 
-				itc::invoke(itc::main_thread::get_id(),
+				tpp::invoke(itc::main_thread::get_id(),
 				[](int arg)
 				{
 					sout() << "on main_thread from detached std::thread " << arg;
 				}, arg);
 
 			}, arg);
-			itc::invoke(itc_thread.get_id(),
+			tpp::invoke(itc_thread.get_id(),
 			[](int arg)
 			{
-				sout() << "on itc::thread " << arg;
+				sout() << "on tpp::thread " << arg;
 
-				itc::invoke(itc::main_thread::get_id(),
+				tpp::invoke(tpp::main_thread::get_id(),
 				[](int arg)
 				{
-					sout() << "on main_thread from itc::thread " << arg;
+					sout() << "on main_thread from tpp::thread " << arg;
 				}, arg);
 
 			}, arg);
-			itc::invoke(itc_thread_detached_id,
+			tpp::invoke(itc_thread_detached_id,
 			[](int arg)
 			{
 				sout() << "on detached itc::thread " << arg;
 
-				itc::invoke(itc::main_thread::get_id(),
+				tpp::invoke(tpp::main_thread::get_id(),
 				[](int arg)
 				{
-					sout() << "on main_thread from detached itc::thread " << arg;
+					sout() << "on main_thread from detached tpp::thread " << arg;
 				}, arg);
 
 			}, arg);
@@ -144,23 +144,23 @@ int main()
 		}
 
 		// for std::thread we have to do this
-		itc::notify_for_exit(std_thread_mapped_id);
+		tpp::notify_for_exit(std_thread_mapped_id);
 		if(std_thread.joinable())
 		{
 			std_thread.join();
 		}
 		
-		// itc::thread will behave as a proper RAII type and join in its destructor
+		// tpp::thread will behave as a proper RAII type and join in its destructor
 	}
 
 	//you can also make use of future/promise and continuations
 	{
-		auto thread1 = itc::make_thread("some_name1");
-		auto thread2 = itc::make_thread();
+		auto thread1 = tpp::make_thread("some_name1");
+		auto thread2 = tpp::make_thread();
 
 		auto th1_id = thread1.get_id();
 		auto th2_id = thread2.get_id();
-		auto this_th_id = itc::this_thread::get_id();
+		auto this_th_id = tpp::this_thread::get_id();
 
 		int iterations = 15;
 		for(int i = 0; i < iterations; ++i)
@@ -173,9 +173,9 @@ int main()
 				// some move only object
 				// can pass it by move either to the capture list or as a parameter to async
 				auto up = std::make_unique<int>(5);
-				auto future = itc::async(th1_id, [u = std::move(up)](int i)
+				auto future = tpp::async(th1_id, [u = std::move(up)](int i)
 				{
-					itc::this_thread::sleep_for(20ms);
+					tpp::this_thread::sleep_for(20ms);
 
 					if(i % 10 == 0)
 					{
@@ -184,9 +184,9 @@ int main()
 					return i;
 				}, i);
 
-				auto shared_future = itc::async(th2_id, [u = std::move(up)](int i)
+				auto shared_future = tpp::async(th2_id, [u = std::move(up)](int i)
 				{
-					itc::this_thread::sleep_for(20ms);
+					tpp::this_thread::sleep_for(20ms);
 
 					if(i % 10 == 0)
 					{
@@ -234,8 +234,8 @@ int main()
 			sout() << "ASYNC TEST " << i << " completed\n";
 		}
 		
-		// itc::thread will behave as a proper RAII type and join in its destructor
+		// tpp::thread will behave as a proper RAII type and join in its destructor
 	}
 
-	return itc::shutdown();
+	return tpp::shutdown();
 }
