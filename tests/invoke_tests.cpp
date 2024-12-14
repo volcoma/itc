@@ -67,8 +67,9 @@ void run_tests(int iterations)
 		}
 
 		sout() << "main_thread waiting ... " << i;
-		tpp::this_thread::process();
-		sout() << "main_thread woke up ... " << i;
+        //tpp::this_thread::wait();
+        tpp::this_thread::process();
+        sout() << "main_thread woke up ... " << i;
 
         tpp::invoke(std_thread_detached_mapped_id,
         [](int arg)
