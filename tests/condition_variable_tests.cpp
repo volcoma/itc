@@ -1,8 +1,8 @@
 #include "condition_variable_tests.h"
 #include "utils.hpp"
 
-#include <itc/condition_variable.hpp>
-#include <itc/thread.h>
+#include <threadpp/condition_variable.hpp>
+#include <threadpp/thread.h>
 #include <chrono>
 
 namespace cv_tests
@@ -11,15 +11,15 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-	auto th1 = itc::make_thread();
-	auto th2 = itc::make_thread();
+	auto th1 = tpp::make_thread();
+	auto th2 = tpp::make_thread();
 
 	for(int i = 0; i < iterations; ++i)
 	{
 		// for the purpose of testing we will make it as shared_ptr
-		auto cv = std::make_shared<itc::condition_variable>();
+		auto cv = std::make_shared<tpp::condition_variable>();
 
-		itc::invoke(th1.get_id(), [cv, i]() {
+		tpp::invoke(th1.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
 			auto res = cv->wait_for(lock, 50ms);
@@ -33,7 +33,7 @@ void run_tests(int iterations)
 			}
 		});
 
-		itc::invoke(th2.get_id(), [cv, i]() {
+		tpp::invoke(th2.get_id(), [cv, i]() {
 			std::mutex m;
 			std::unique_lock<std::mutex> lock(m);
 			auto res = cv->wait_for(lock, 100ms);

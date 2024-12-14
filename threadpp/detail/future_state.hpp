@@ -2,7 +2,7 @@
 #include "../condition_variable.hpp"
 #include <future>
 #include <vector>
-namespace itc
+namespace tpp
 {
 
 namespace detail
@@ -205,4 +205,4 @@ inline void state_invalidate(std::shared_ptr<future_state<T>>& state)
     state.reset();
 }
 } // namespace detail
-} // namespace itc
+} // namespace tpp

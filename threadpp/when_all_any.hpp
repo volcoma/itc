@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace itc
+namespace tpp
 {
 
 template<typename Sequence>
@@ -419,4 +419,4 @@ void visit_at(Tuple&& tup, size_t idx, F&& f)
     detail::visit_impl<std::tuple_size<std::decay_t<Tuple>>::value>::visit(tup, idx, std::forward<F>(f));
 }
 
-} // namespace itc
+} // namespace tpp

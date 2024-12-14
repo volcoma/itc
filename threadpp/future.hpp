@@ -7,7 +7,7 @@
 #include "thread.h"
 #include <future>
 
-namespace itc
+namespace tpp
 {
 
 template<typename T>
@@ -714,7 +714,7 @@ auto async(std::launch policy, F&& f, Args&&... args) -> future<async_ret_type<F
 template<typename F, typename... Args>
 auto async(F&& f, Args&&... args) -> future<async_ret_type<F, Args...>>
 {
-    return itc::async(std::launch::deferred | std::launch::async, std::forward<F>(f), std::forward<Args>(args)...);
+    return tpp::async(std::launch::deferred | std::launch::async, std::forward<F>(f), std::forward<Args>(args)...);
 }
 //-----------------------------------------------------------------------------
 /// future<T>::then() overloads
@@ -941,4 +941,4 @@ auto shared_future<void>::then(F&& f) const -> future<then_ret_type<F, shared_fu
 {
     return then(std::launch::async | std::launch::deferred, std::forward<F>(f));
 }
-} // namespace itc
+} // namespace tpp

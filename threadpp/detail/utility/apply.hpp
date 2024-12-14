@@ -1,7 +1,7 @@
 #pragma once
 #include "invoke.hpp"
 #include <tuple>
-namespace itc
+namespace tpp
 {
 namespace utility
 {
@@ -15,7 +15,7 @@ template<typename F, typename T, std::size_t... I>
 constexpr inline auto apply(F&& f, T&& t, std::index_sequence<I...> /*unused*/) -> decltype(auto)
 {
     ignore(t);
-    return itc::utility::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);
+    return tpp::utility::invoke(std::forward<F>(f), std::get<I>(std::forward<T>(t))...);
 }
 
 } // namespace detail
@@ -28,4 +28,4 @@ constexpr inline auto apply(F&& f, T&& t) -> decltype(auto)
                          std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>{});
 }
 } // namespace utility
-} // namespace itc
+} // namespace tpp

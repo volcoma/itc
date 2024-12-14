@@ -1,6 +1,6 @@
-message(STATUS "Enabled itc tests.")
+message(STATUS "Enabled threadpp tests.")
 
-set(target_name itc_test)
+set(target_name threadpp_test)
 
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
@@ -12,7 +12,7 @@ find_package(Threads REQUIRED)
 target_link_libraries(${target_name} PUBLIC Threads::Threads)
 
 
-target_link_libraries(${target_name} PUBLIC itc)
+target_link_libraries(${target_name} PUBLIC threadpp)
 
 set_target_properties(${target_name} PROPERTIES
     CXX_STANDARD 14

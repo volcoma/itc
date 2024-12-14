@@ -8,7 +8,7 @@
 #include <list>
 #include <mutex>
 
-namespace itc
+namespace tpp
 {
 namespace detail
 {
@@ -106,4 +106,4 @@ protected:
     mutable std::vector<waiter_info> waiters_;
 };
 } // namespace detail
-} // namespace itc
+} // namespace tpp

@@ -2,8 +2,8 @@
 #include "utils.hpp"
 
 #include <chrono>
-#include <itc/thread_pool.h>
-#include <itc/when_all_any.hpp>
+#include <threadpp/thread_pool.h>
+#include <threadpp/when_all_any.hpp>
 
 namespace when_tests
 {
@@ -11,26 +11,26 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-	auto thread1 = itc::make_thread();
-	auto thread2 = itc::make_thread();
+	auto thread1 = tpp::make_thread();
+	auto thread2 = tpp::make_thread();
 
 	auto th1_id = thread1.get_id();
 	auto th2_id = thread2.get_id();
-	auto this_th_id = itc::this_thread::get_id();
+	auto this_th_id = tpp::this_thread::get_id();
 
 	// clang-format off
 	for(int i = 0; i < iterations; ++i)
 	{
 
 //		{
-//			auto f0 = itc::async(th1_id, []() { return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
 //			// Use an applicative pattern. Attach a continuation depending
 //			// on multiple futures
 
 //			// Pass by reference
-//			auto when = itc::when_all(f0, f1)
+//			auto when = tpp::when_all(f0, f1)
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto futures = parent.get();
@@ -48,11 +48,11 @@ void run_tests(int iterations)
 //		}
 
 //		{
-//			auto f0 = itc::async(th1_id, []() { return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
 //			// Pass by rvalue
-//			auto when = itc::when_all(std::move(f0), std::move(f1))
+//			auto when = tpp::when_all(std::move(f0), std::move(f1))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto futures = parent.get();
@@ -70,17 +70,17 @@ void run_tests(int iterations)
 //		}
 //		{
 
-//			auto f0 = itc::async(th1_id, []() { return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; });
+//			auto f0 = tpp::async(th1_id, []() { return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; });
 
-//			itc::future<int> fs[] = {std::move(f0), std::move(f1)};
-//			// std::vector<itc::future<int>> fs;
+//			tpp::future<int> fs[] = {std::move(f0), std::move(f1)};
+//			// std::vector<tpp::future<int>> fs;
 //			// fs.reserve(2);
 //			// fs.emplace_back(std::move(f0));
 //			// fs.emplace_back(std::move(f1));
-//			// std::array<itc::future<int>, 2> fs = { std::move(f0), std::move(f1) };
+//			// std::array<tpp::future<int>, 2> fs = { std::move(f0), std::move(f1) };
 
-//			auto when = itc::when_all(std::begin(fs), std::end(fs))
+//			auto when = tpp::when_all(std::begin(fs), std::end(fs))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto futures = parent.get();
@@ -98,17 +98,17 @@ void run_tests(int iterations)
 //		}
 //		{
 
-//			auto f0 = itc::async(th1_id, []() { return 0; }).share();
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { return 0; }).share();
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
-//			itc::shared_future<int> fs[] = {f0, f1};
+//			tpp::shared_future<int> fs[] = {f0, f1};
 //			// std::vector<itcshared_futurefuture<int>> fs;
 //			// fs.reserve(2);
 //			// fs.emplace_back(f0);
 //			// fs.emplace_back(f1);
-//			// std::array<itc::shared_future<int>, 2> fs = { f0, f1 };
+//			// std::array<tpp::shared_future<int>, 2> fs = { f0, f1 };
 
-//			auto when = itc::when_all(std::begin(fs), std::end(fs))
+//			auto when = tpp::when_all(std::begin(fs), std::end(fs))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto futures = parent.get();
@@ -126,18 +126,18 @@ void run_tests(int iterations)
 //		}
 
 //		{
-//			auto f0 = itc::async(th1_id, []() { throw 12; return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { throw 12; return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
 //			// Pass by reference
-//			auto when = itc::when_any(f0, f1)
+//			auto when = tpp::when_any(f0, f1)
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto result = parent.get();
 //				auto index = result.index;
 
 //				// facility to access tuple element by runtime index
-//				itc::visit_at(result.futures, index, [index](auto& chain) {
+//				tpp::visit_at(result.futures, index, [index](auto& chain) {
 //					try
 //					{
 //						auto result = chain.get();
@@ -154,18 +154,18 @@ void run_tests(int iterations)
 //			when.wait();
 //		}
 //		{
-//			auto f0 = itc::async(th1_id, []() { return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
 //			// Pass by rvalue
-//			auto when = itc::when_any(std::move(f0), std::move(f1))
+//			auto when = tpp::when_any(std::move(f0), std::move(f1))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto result = parent.get();
 //				auto index = result.index;
 
 //				// facility to access tuple element by runtime index
-//				itc::visit_at(result.futures, index, [index](auto& chain) {
+//				tpp::visit_at(result.futures, index, [index](auto& chain) {
 //					try
 //					{
 //						auto result = chain.get();
@@ -182,17 +182,17 @@ void run_tests(int iterations)
 //			when.wait();
 //		}
 //		{
-//			auto f0 = itc::async(th1_id, []() { return 0; });
-//			auto f1 = itc::async(th2_id, []() { return 1; });
+//			auto f0 = tpp::async(th1_id, []() { return 0; });
+//			auto f1 = tpp::async(th2_id, []() { return 1; });
 
-//			itc::future<int> fs[] = {std::move(f0), std::move(f1)};
-//			// std::vector<itc::future<int>> fs;
+//			tpp::future<int> fs[] = {std::move(f0), std::move(f1)};
+//			// std::vector<tpp::future<int>> fs;
 //			// fs.reserve(2);
 //			// fs.emplace_back(std::move(f0));
 //			// fs.emplace_back(std::move(f1));
-//			// std::array<itc::future<int>, 2> fs = { std::move(f0), std::move(f1) };
+//			// std::array<tpp::future<int>, 2> fs = { std::move(f0), std::move(f1) };
 
-//			auto when = itc::when_any(std::begin(fs), std::end(fs))
+//			auto when = tpp::when_any(std::begin(fs), std::end(fs))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto result = parent.get();
@@ -205,17 +205,17 @@ void run_tests(int iterations)
 //			when.wait();
 //		}
 //		{
-//			auto f0 = itc::async(th1_id, []() { return 0; }).share();
-//			auto f1 = itc::async(th2_id, []() { return 1; }).share();
+//			auto f0 = tpp::async(th1_id, []() { return 0; }).share();
+//			auto f1 = tpp::async(th2_id, []() { return 1; }).share();
 
-//			itc::shared_future<int> fs[] = {f0, f1};
+//			tpp::shared_future<int> fs[] = {f0, f1};
 //			// std::vector<itcshared_futurefuture<int>> fs;
 //			// fs.reserve(2);
 //			// fs.emplace_back(f0);
 //			// fs.emplace_back(f1);
-//			// std::array<itc::shared_future<int>, 2> fs = { f0, f1 };
+//			// std::array<tpp::shared_future<int>, 2> fs = { f0, f1 };
 
-//			auto when = itc::when_any(std::begin(fs), std::end(fs))
+//			auto when = tpp::when_any(std::begin(fs), std::end(fs))
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto result = parent.get();
@@ -228,12 +228,12 @@ void run_tests(int iterations)
 //		}
 //        //empty test
 //        {
-//            auto when = itc::when_all();
+//            auto when = tpp::when_all();
 //            when.get();
 
 //        }
 //        {
-//            auto when = itc::when_any();
+//            auto when = tpp::when_any();
 //            auto res = when.get();
 
 //            if(res.index != size_t(-1))
@@ -242,8 +242,8 @@ void run_tests(int iterations)
 //            }
 //        }
 //        {
-//            std::vector<itc::future<void>> fs{};
-//            auto when = itc::when_any(std::begin(fs), std::end(fs));
+//            std::vector<tpp::future<void>> fs{};
+//            auto when = tpp::when_any(std::begin(fs), std::end(fs));
 //            auto res = when.get();
 
 //            if(res.index != size_t(-1))
@@ -252,22 +252,22 @@ void run_tests(int iterations)
 //            }
 //        }
 //        {
-//            itc::thread_pool pool({{itc::priority::category::normal, 2},
-//                                   {itc::priority::category::high, 1},
-//                                   {itc::priority::category::critical, 1}});
+//            tpp::thread_pool pool({{tpp::priority::category::normal, 2},
+//                                   {tpp::priority::category::high, 1},
+//                                   {tpp::priority::category::critical, 1}});
 
-//            auto f0 = pool.schedule(itc::priority::normal(), []()
+//            auto f0 = pool.schedule(tpp::priority::normal(), []()
 //            {
 //                return 0;
 //            });
 
-//            auto f1 = pool.schedule(itc::priority::normal(), []()
+//            auto f1 = pool.schedule(tpp::priority::normal(), []()
 //            {
 //                return 1;
 //            });
 
 //            // Pass by reference
-//			auto when = itc::when_all(f0, f1)
+//			auto when = tpp::when_all(f0, f1)
 //            .then(this_th_id, [](auto parent)
 //            {
 //				auto futures = parent.get();
@@ -286,7 +286,7 @@ void run_tests(int iterations)
 
 
         {
-            auto chain = itc::async(th1_id, []() -> int
+            auto chain = tpp::async(th1_id, []() -> int
             {
                 throw std::runtime_error("propagate");
             })
@@ -302,7 +302,7 @@ void run_tests(int iterations)
                 sout() << "chain then " << result;
                 return result;
             });
-            auto when = itc::when_all(chain);
+            auto when = tpp::when_all(chain);
             try
             {
                 sout() << "wait on chain\n";

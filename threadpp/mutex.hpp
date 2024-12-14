@@ -1,7 +1,7 @@
 #pragma once
 #include "detail/semaphore.h"
 
-namespace itc
+namespace tpp
 {
 class mutex
 {
@@ -79,4 +79,4 @@ private:
     std::atomic<thread::id> owner_{invalid_id()};
     std::atomic_flag flag_ = ATOMIC_FLAG_INIT;
 };
-} // namespace itc
+} // namespace tpp

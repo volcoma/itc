@@ -1,7 +1,7 @@
 #include "thread_pool_tests.h"
 #include "utils.hpp"
 
-#include <itc/thread_pool.h>
+#include <threadpp/thread_pool.h>
 #include <chrono>
 
 namespace thread_pool_tests
@@ -10,26 +10,26 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-	auto now = itc::clock::now();
+	auto now = tpp::clock::now();
 
-	itc::thread_pool pool({{itc::priority::category::normal, 2},
-						   {itc::priority::category::high, 1},
-						   {itc::priority::category::critical, 1}});
+	tpp::thread_pool pool({{tpp::priority::category::normal, 2},
+						   {tpp::priority::category::high, 1},
+						   {tpp::priority::category::critical, 1}});
 
 	for(int i = 0; i < iterations; ++i)
 	{
 		for(size_t j = 0; j < 5; ++j)
 		{
 			// clang-format off
-            auto job = pool.schedule(itc::priority::normal(j), [i, j]()
+            auto job = pool.schedule(tpp::priority::normal(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
                 sout() << "call normal priority job " << i << " variant : " << j;
             });
-//            pool.change_priority(job.id, itc::priority::critical());
+//            pool.change_priority(job.id, tpp::priority::critical());
 
 //            //job is just a normal shared_future and we can use it like any other
-//            job.then(itc::this_thread::get_id(), [](auto parent)
+//            job.then(tpp::this_thread::get_id(), [](auto parent)
 //            {
 //                sout() << "job is done\n";
 //            });
@@ -42,7 +42,7 @@ void run_tests(int iterations)
 		for(size_t j = 0; j < 5; ++j)
 		{
 			// clang-format off
-            pool.schedule(itc::priority::high(j), [i, j]()
+            pool.schedule(tpp::priority::high(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
                 sout() << "call high priority job " << i << " variant : " << j;
@@ -53,7 +53,7 @@ void run_tests(int iterations)
 		for(size_t j = 0; j < 5; ++j)
 		{
 			// clang-format off
-            pool.schedule(itc::priority::critical(j), [i, j]()
+            pool.schedule(tpp::priority::critical(j), [i, j]()
             {
                 std::this_thread::sleep_for(10ms);
                 sout() << "call critical priority job " << i << " variant : " << j;
@@ -65,7 +65,7 @@ void run_tests(int iterations)
 	// pool.stop_all();
 	pool.wait_all();
 
-	auto end = itc::clock::now();
+	auto end = tpp::clock::now();
 	auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - now);
 	sout() << dur.count() << "ms\n";
 }

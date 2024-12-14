@@ -4,7 +4,7 @@
 #include <map>
 #include <memory>
 
-namespace itc
+namespace tpp
 {
 
 namespace priority
@@ -138,9 +138,9 @@ public:
     //-----------------------------------------------------------------------------
     /// Creates a thread_pool with specified workers per priority level.
     /// E.g
-    /// itc::thread_pool pool({{itc::priority::category::normal, 2},
-    ///					       {itc::priority::category::high, 1},
-    ///					       {itc::priority::category::critical, 1}});
+    /// tpp::thread_pool pool({{tpp::priority::category::normal, 2},
+    ///					       {tpp::priority::category::high, 1},
+    ///					       {tpp::priority::category::critical, 1}});
     //-----------------------------------------------------------------------------
     thread_pool(const std::map<priority::category, size_t>& workers_per_priority_level,
                 tasks_capacity_config config = {});
@@ -229,4 +229,4 @@ auto thread_pool::schedule(F&& f, Args&&... args) -> job_future<job_ret_type<F, 
     return schedule(priority::normal(), std::forward<F>(f), std::forward<Args>(args)...);
 }
 
-} // namespace itc
+} // namespace tpp

@@ -1,7 +1,7 @@
 #include "overhead_tests.h"
 #include "utils.hpp"
 
-#include <itc/future.hpp>
+#include <threadpp/future.hpp>
 #include <chrono>
 
 namespace overhead_tests
@@ -12,42 +12,42 @@ void run_tests()
 	Informer info;
 
 	sout() << "-------------------";
-	sout() << "itc::invoke via argument (rvalue)";
-	itc::invoke(itc::main_thread::get_id(), [](const Informer&) {}, Informer{});
-	itc::this_thread::process();
+	sout() << "tpp::invoke via argument (rvalue)";
+	tpp::invoke(tpp::main_thread::get_id(), [](const Informer&) {}, Informer{});
+	tpp::this_thread::process();
 
 	sout() << "-------------------";
-	sout() << "itc::invoke via capture (rvalue)";
-	itc::invoke(itc::main_thread::get_id(), [arg = Informer{}](){});
-	itc::this_thread::process();
+	sout() << "tpp::invoke via capture (rvalue)";
+	tpp::invoke(tpp::main_thread::get_id(), [arg = Informer{}](){});
+	tpp::this_thread::process();
 
 	sout() << "-------------------";
-	sout() << "itc::async via argument (rvalue)";
-	itc::async(itc::main_thread::get_id(), std::launch::async, [](const Informer&) {}, Informer{}).wait();
+	sout() << "tpp::async via argument (rvalue)";
+	tpp::async(tpp::main_thread::get_id(), std::launch::async, [](const Informer&) {}, Informer{}).wait();
 
 	sout() << "-------------------";
 	sout() << "std::async via argument (rvalue)";
 	std::async(std::launch::async, [](const Informer&) {}, Informer{}).wait();
 
 	sout() << "-------------------";
-	sout() << "itc::async via capture (rvalue)";
-	itc::async(itc::main_thread::get_id(), std::launch::async, [arg = Informer{}](){}).wait();
+	sout() << "tpp::async via capture (rvalue)";
+	tpp::async(tpp::main_thread::get_id(), std::launch::async, [arg = Informer{}](){}).wait();
 
 	sout() << "-------------------";
 	sout() << "std::async via capture (rvalue)";
 	std::async(std::launch::async, [arg = Informer{}](){}).wait();
 
 	sout() << "-------------------";
-	sout() << "itc::async via argument  (lvalue)";
-	itc::async(itc::main_thread::get_id(), std::launch::async, [](const Informer&) {}, info).wait();
+	sout() << "tpp::async via argument  (lvalue)";
+	tpp::async(tpp::main_thread::get_id(), std::launch::async, [](const Informer&) {}, info).wait();
 
 	sout() << "-------------------";
 	sout() << "std::async via argument (lvalue)";
 	std::async(std::launch::async, [](const Informer&) {}, info).wait();
 
 	sout() << "-------------------";
-	sout() << "itc::async via capture (lvalue)";
-	itc::async(itc::main_thread::get_id(), std::launch::async, [info]() {}).wait();
+	sout() << "tpp::async via capture (lvalue)";
+	tpp::async(tpp::main_thread::get_id(), std::launch::async, [info]() {}).wait();
 
 	sout() << "-------------------";
 	sout() << "std::async via capture (lvalue)";
@@ -56,17 +56,17 @@ void run_tests()
 /*
  libstdc++ results
 -------------------
-itc::invoke via argument (rvalue)
+tpp::invoke via argument (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::invoke via capture (rvalue)
+tpp::invoke via capture (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via argument (rvalue)
+tpp::async via argument (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -76,7 +76,7 @@ Informer()
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via capture (rvalue)
+tpp::async via capture (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -86,7 +86,7 @@ Informer()
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via argument  (lvalue)
+tpp::async via argument  (lvalue)
 Informer(const Informer&&)
 Informer(Informer&&)
 -------------------
@@ -94,7 +94,7 @@ std::async via argument (lvalue)
 Informer(const Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via capture (lvalue)
+tpp::async via capture (lvalue)
 Informer(const Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
@@ -107,7 +107,7 @@ Informer(Informer&&)
 
 msvc results
 -------------------
-itc::invoke via argument (rvalue)
+tpp::invoke via argument (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -115,7 +115,7 @@ Informer(Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::invoke via capture (rvalue)
+tpp::invoke via capture (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -124,7 +124,7 @@ Informer(Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via argument (rvalue)
+tpp::async via argument (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -138,7 +138,7 @@ Informer(Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via capture (rvalue)
+tpp::async via capture (rvalue)
 Informer()
 Informer(Informer&&)
 Informer(Informer&&)
@@ -154,7 +154,7 @@ Informer(Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via argument  (lvalue)
+tpp::async via argument  (lvalue)
 Informer(const Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
@@ -166,7 +166,7 @@ Informer(const Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)
 -------------------
-itc::async via capture (lvalue)
+tpp::async via capture (lvalue)
 Informer(const Informer&&)
 Informer(Informer&&)
 Informer(Informer&&)

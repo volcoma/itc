@@ -1,21 +1,21 @@
 cmake_minimum_required(VERSION 3.14)
 
-set(ITC_MAIN_PROJECT ON)
+set(THREADPP_MAIN_PROJECT ON)
 if(DEFINED PROJECT_SOURCE_DIR)
-    set(ITC_MAIN_PROJECT OFF)
+    set(THREADPP_MAIN_PROJECT OFF)
 endif()
 
-project(itc)
+project(threadpp)
 include(CTest)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/utility")
 
-option(BUILD_ITC_SHARED "Build as a shared library." ${ITC_MAIN_PROJECT})
-option(BUILD_ITC_TESTS "Build the tests" ${ITC_MAIN_PROJECT})
-option(BUILD_ITC_WITH_CODE_STYLE_CHECKS "Build with code style checks." ${ITC_MAIN_PROJECT})
+option(BUILD_THREADPP_SHARED "Build as a shared library." ${THREADPP_MAIN_PROJECT})
+option(BUILD_THREADPP_TESTS "Build the tests" ${THREADPP_MAIN_PROJECT})
+option(BUILD_THREADPP_WITH_CODE_STYLE_CHECKS "Build with code style checks." ${THREADPP_MAIN_PROJECT})
 
-if(BUILD_ITC_TESTS)
+if(BUILD_THREADPP_TESTS)
 	if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 		set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 	endif()
@@ -27,16 +27,16 @@ if(BUILD_ITC_TESTS)
 	endif()
 endif()
 
-if(BUILD_ITC_SHARED)
+if(BUILD_THREADPP_SHARED)
 	set(BUILD_SHARED_LIBS ON)
 endif()
 
-if(BUILD_ITC_WITH_CODE_STYLE_CHECKS)
+if(BUILD_THREADPP_WITH_CODE_STYLE_CHECKS)
 	set(BUILD_WITH_CODE_STYLE_CHECKS ON)
 endif()
 
-add_subdirectory(itc)
+add_subdirectory(threadpp)
 
-if(BUILD_ITC_TESTS)
+if(BUILD_THREADPP_TESTS)
 	add_subdirectory(tests)
 endif()

@@ -1,6 +1,6 @@
 file(GLOB_RECURSE libsrc *.h *.cpp *.hpp *.c *.cc)
 
-set(target_name itc)
+set(target_name threadpp)
 
 add_library(${target_name} ${libsrc})
 
@@ -25,4 +25,4 @@ include(target_warning_support)
 set_warning_level(${target_name} ultra)
 
 #include(target_code_style_support)
-#set_code_style(itc lower_case check_headers "${extra_flags}")
+#set_code_style(threadpp lower_case check_headers "${extra_flags}")

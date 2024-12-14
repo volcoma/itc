@@ -1,4 +1,4 @@
-#include "itc/thread.h"
+#include "threadpp/thread.h"
 
 #include "async_tests.h"
 #include "when_tests.h"
@@ -15,10 +15,10 @@
 
 int main()
 {
-	itc::init_data data;
+	tpp::init_data data;
 	data.log_error = [](const std::string& msg) { sout() << msg << "\n"; };
     data.log_info = [](const std::string& msg) { sout() << msg << "\n"; };
-	itc::init(data);
+	tpp::init(data);
 
     overhead_tests::run_tests();
     invoke_tests::run_tests(1000);
@@ -28,6 +28,6 @@ int main()
     when_tests::run_tests(50);
     thread_pool_tests::run_tests(50);
 
-	itc::shutdown();
+	tpp::shutdown();
 	return 0;
 }

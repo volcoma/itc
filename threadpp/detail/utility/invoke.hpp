@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace itc
+namespace tpp
 {
 template<typename... Args>
 inline void ignore(Args&&... /*unused*/)
@@ -145,4 +145,4 @@ struct invoke_result : detail::invoke_result<void, F, ArgTypes...>
 template<typename F, typename... Args>
 using invoke_result_t = typename invoke_result<F, Args...>::type;
 } // namespace utility
-} // namespace itc
+} // namespace tpp

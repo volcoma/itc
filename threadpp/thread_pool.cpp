@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace itc
+namespace tpp
 {
 
 class thread_pool::impl
@@ -31,7 +31,7 @@ class thread_pool::impl
         return lhs.group.priority < rhs.group.priority;
     }
 
-    using workers = std::vector<itc::thread>;
+    using workers = std::vector<tpp::thread>;
     using priority_workers = std::map<priority::category, workers>;
     using jobs_queue = std::priority_queue<job_handle>;
     using priority_queues = std::map<priority::category, jobs_queue>;
@@ -54,7 +54,7 @@ public:
                     std::string name = "pool_w:" + std::to_string(unsigned(level)) + ":" + std::to_string(i);
                     workers_for_level.emplace_back(make_thread(name));
                     auto& task = workers_for_level.back();
-                    itc::set_thread_config(task.get_id(), config);
+                    tpp::set_thread_config(task.get_id(), config);
                 }
             }
         }
@@ -202,7 +202,7 @@ private:
                 auto& workers = workers_[priority];
                 for(auto& w : workers)
                 {
-                    invoke(w.get_id(),
+                    dispatch(w.get_id(),
                            [this, priority]()
                            {
                                check_jobs(priority);
@@ -359,4 +359,4 @@ void job_future_storage::stop()
     }
 }
 
-} // namespace itc
+} // namespace tpp

@@ -1,7 +1,7 @@
 #pragma once
 #include "detail/semaphore.h"
 
-namespace itc
+namespace tpp
 {
 class condition_variable
 {
@@ -88,4 +88,4 @@ public:
 private:
     detail::semaphore sync_;
 };
-} // namespace itc
+} // namespace tpp

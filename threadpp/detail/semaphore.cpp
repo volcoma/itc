@@ -1,7 +1,7 @@
 #include "semaphore.h"
 #include <algorithm>
 
-namespace itc
+namespace tpp
 {
 namespace detail
 {
@@ -189,4 +189,4 @@ void semaphore::remove_waiter(thread::id id) const
 }
 
 } // namespace detail
-} // namespace itc
+} // namespace tpp

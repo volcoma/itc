@@ -2,7 +2,7 @@
 #include "utils.hpp"
 
 #include <chrono>
-#include <itc/future.hpp>
+#include <threadpp/future.hpp>
 
 namespace async_tests
 {
@@ -10,12 +10,12 @@ using namespace std::chrono_literals;
 
 void run_tests(int iterations)
 {
-	auto thread1 = itc::make_thread();
-	auto thread2 = itc::make_thread();
+	auto thread1 = tpp::make_thread();
+	auto thread2 = tpp::make_thread();
 
 	auto th1_id = thread1.get_id();
 	auto th2_id = thread2.get_id();
-	auto this_th_id = itc::this_thread::get_id();
+	auto this_th_id = tpp::this_thread::get_id();
 
 	for(int i = 0; i < iterations; ++i)
 	{
@@ -27,9 +27,9 @@ void run_tests(int iterations)
             // some move only object
             // can pass it by move either to the capture list or as a parameter to async
             auto up = std::make_unique<int>(5);
-            auto future = itc::async(th1_id, [u = std::move(up)](int i)
+            auto future = tpp::async(th1_id, [u = std::move(up)](int i)
             {
-                itc::this_thread::sleep_for(20ms);
+                tpp::this_thread::sleep_for(20ms);
 
                 if(i % 10 == 0)
                 {
@@ -38,9 +38,9 @@ void run_tests(int iterations)
                 return i;
             }, i);
 
-            auto shared_future = itc::async(th2_id, [u = std::move(up)](int i)
+            auto shared_future = tpp::async(th2_id, [u = std::move(up)](int i)
             {
-                itc::this_thread::sleep_for(20ms);
+                tpp::this_thread::sleep_for(20ms);
 
                 if(i % 10 == 0)
                 {

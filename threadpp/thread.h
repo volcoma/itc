@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-namespace itc
+namespace tpp
 {
 //-----------------------------------------------------------------------------
 /// std::thread wrapper handling registration and exit notification
@@ -260,12 +260,12 @@ auto get_depth() -> std::uint32_t;
 auto is_registered() -> bool;
 
 } // namespace this_thread
-} // namespace itc
+} // namespace tpp
 
 //-----------------------------------------------------------------------------
 /// Impl
 //-----------------------------------------------------------------------------
-namespace itc
+namespace tpp
 {
 namespace detail
 {
@@ -384,4 +384,4 @@ inline void sleep_until(const std::chrono::time_point<Clock, Duration>& abs_time
 }
 } // namespace this_thread
 
-} // namespace itc
+} // namespace tpp

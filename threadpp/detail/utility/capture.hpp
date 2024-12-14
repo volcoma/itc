@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace itc
+namespace tpp
 {
 template<class T>
 struct unwrap_refwrapper
@@ -58,4 +58,4 @@ auto capture(Args&&... args) noexcept -> move_on_copy_t<Args...>
     return {std::forward<Args>(args)...};
 }
 
-} // namespace itc
+} // namespace tpp

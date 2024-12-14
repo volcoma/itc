@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-namespace itc
+namespace tpp
 {
 
 struct thread_context
@@ -40,8 +40,8 @@ struct program_context
     init_data config;
 };
 
-#define log_info_func(msg)  log_info("[itc::" + std::string(__func__) + "] : " + (msg))
-#define log_error_func(msg) log_error("[itc::" + std::string(__func__) + "] : " + (msg))
+#define log_info_func(msg)  log_info("[tpp::" + std::string(__func__) + "] : " + (msg))
+#define log_error_func(msg) log_error("[tpp::" + std::string(__func__) + "] : " + (msg))
 namespace
 {
 program_context global_data;
@@ -334,7 +334,7 @@ void notify_for_exit(thread::id id)
 
 void notify(thread::id id)
 {
-    invoke(id,
+    dispatch(id,
            []()
            {
            });
@@ -724,7 +724,7 @@ thread::~thread()
 
 auto set_thread_config(thread::id id, tasks_capacity_config config) -> bool
 {
-    return itc::dispatch(id,
+    return tpp::dispatch(id,
                          [config]()
                          {
                              auto& local_context = get_local_context();
@@ -734,4 +734,4 @@ auto set_thread_config(thread::id id, tasks_capacity_config config) -> bool
                          });
 }
 
-} // namespace itc
+} // namespace tpp
